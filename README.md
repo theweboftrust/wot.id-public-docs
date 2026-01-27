@@ -14,17 +14,9 @@ For the human actors in the loop, wot.id offers the following advantages:
 4. **Selective Disclosure**: Reveal any aspect of your digital existence to anyone, with any desired degree of granularity and anonymity. You decide who sees what, and when.
 5. **Provenance & Attribution**: Establish a reliable, auditable source of truth for your work, content, and contributions — essential in an era of deepfakes, misinformation, and uncredited AI training data.
 
-These are not aspirational goals. They are operational on the IOTA mainnet today.
+These are not aspirational goals, the MVP (with all its limitations) is operational at
 
-
-**The world's first quantum-safe self-sovereign identity platform.** First mainnet transaction with PQC encryption: December 23, 2025.
-
-| Technology | Purpose |
-|------------|---------|
-| **IOTA Tangle** | Feeless DAG-based distributed ledger (Protocol 17 mainnet) |
-| **Move** | Secure smart contract language eliminating 5 of OWASP Top 10 |
-| **W3C DID Core 1.0** | Standard decentralized identifier with Ed25519 + BLAKE3 |
-| **NIST PQC** | Hybrid X25519 + ML-KEM-768 post-quantum encryption (FIPS 203) |
+https://www.wot.id
 
 ---
 
