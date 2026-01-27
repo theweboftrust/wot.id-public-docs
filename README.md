@@ -2,7 +2,7 @@
 
 wot.id is an open peer-to-peer environment where any digitally connected actor — human, machine, service, or otherwise — can communicate, manage and exchange assets, and handle trust with instantaneous speed, maximum security, and minimal cost. 
 
-Built upon IOTA's advanced distributed ledger technology (the real cloud), every datapoint is permanently available on a directed acyclic graph, but can only be accessed and controlled by its owner. Every datapoint also has an inbuilt trust level ranging from **-100 to +100** that enables participants to establish and manage complex trust relationships.
+Built upon IOTA's advanced distributed ledger technology, every datapoint is permanently available on a directed acyclic graph (the real cloud), but can only be accessed and controlled by its owner. Every datapoint also has an inbuilt trust level ranging from **-100 to +100** that enables participants to establish and manage complex trust relationships.
 
 ## Take Back Control
 
@@ -14,17 +14,16 @@ For the human actors in the loop, wot.id offers the following advantages:
 4. **Selective Disclosure**: Reveal any aspect of your digital existence to anyone, with any desired degree of granularity and anonymity. You decide who sees what, and when.
 5. **Provenance & Attribution**: Establish a reliable, auditable source of truth for your work, content, and contributions — essential in an era of deepfakes, misinformation, and uncredited AI training data.
 
-These are not aspirational goals, the MVP (with all its limitations) is operational at
+These are not aspirational goals, the MVP is operational (with all its limitations) at
 
 https://www.wot.id
-
 
 
 ## Documentation
 
 Reach out to get access to 55,000 lines of code for examination and discussion at https://github.com/theweboftrust/wot.id, but make sure to study these foundational docs first.
 
-### The Human Promise (Start Here)
+### The Human Promise
 
 - **[01 — Project Overview and Principles](docs/01_Project_Overview_And_Principles.md)**: The mission, the 10 core principles that guide every design decision, and why human sovereignty is the foundation — not an afterthought. This is the document to read first.
 
@@ -48,31 +47,38 @@ Reach out to get access to 55,000 lines of code for examination and discussion a
 
 ---
 
-## Project Status (December 2025)
+## Project Status (January 2026)
 
 wot.id is actively under development with a fully operational backend and frontend deployed on IOTA mainnet.
 
 ### Working Components
 
 - **IOTA Mainnet Integration**: Backend connected to IOTA mainnet with direct API and CLI integration
-- **Deployed Move Contracts**: Identity Registry and Profile contracts on mainnet
-- **Post-Quantum Encryption**: Hybrid X25519 + ML-KEM-768 encryption operational
+- **Deployed Move Contracts**: Identity Registry, Profile, Trust, and FileVault contracts on mainnet (Package v7)
+- **Post-Quantum Encryption**: Hybrid X25519 + ML-KEM-768 encryption operational for identity, health, and file data
 - **Gas Station Pattern**: Backend-sponsored transactions for zero-friction onboarding
 - **Modern Rust Backend**: Axum-based REST API with JWT authentication
 - **Next.js Frontend**: TypeScript frontend with complete user flows
+- **Local Encrypted File Storage**: Client-side ChaCha20-Poly1305 encryption with IndexedDB, 9 file categories, hybrid PQC key wrapping
+- **Comprehensive Security Hardening**: JWT signature verification, nonce replay prevention, 4-phase rate limiting, DID-based throttling, Sybil defenses
 - **Production Deployment**: Live on [wot.id](https://wot.id)
 
 ### Recent Milestones
 
+- **January 2026**: FileVault Move contract deployed on mainnet (Package v7) — encrypted file metadata and DEK on-chain
+- **January 2026**: Full security hardening — JWT attestation verification, nonce replay prevention, 4-phase rate limiting, DID-based throttling
+- **January 2026**: Local encrypted file storage with PQC key wrapping (ChaCha20-Poly1305 + X25519 + ML-KEM-768)
+- **January 2026**: Account linking for multi-provider Sybil prevention
+- **January 2026**: W3C DID Core 1.0 compliance verified for production
 - **December 2025**: First PQC-encrypted transaction on IOTA mainnet
 - **November 2025**: QR code attestations and cross-device trust flows
 - **November 2025**: OAuth auto-provisioning (Google, GitHub, Apple)
 
 ---
 
-## Open Source
+## Source Code
 
-wot.id is fully open source. Audit the code, contribute, or run your own instance.
+the substantial codebase is currently not (yet) open source.
 
 - **Repository**: [github.com/theweboftrust/wot.id](https://github.com/theweboftrust/wot.id)
 - **Issues**: [Report bugs or request features](https://github.com/theweboftrust/wot.id/issues)
