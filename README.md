@@ -1,129 +1,56 @@
 # wot.id: Human Identity on the Web of Trust
 
-**The world's first quantum-safe self-sovereign identity platform.**
-
-wot.id is an open peer-to-peer environment where any digitally connected actor—human, machine, service, or otherwise—can communicate, manage and exchange assets, and handle trust with instantaneous speed, maximum security, and minimal cost. Built upon IOTA's advanced distributed ledger technology, any datapoint is permanently available on a directed acyclic graph (the Tangle), but can only be accessed and controlled by its owner. Every datapoint also has an inbuilt trust level ranging from **-100 to +100** that enables participants to establish and manage complex trust relationships.
-
----
-
-## Quantum-Safe Identity
-
-wot.id is the **first digital identity platform** to combine post-quantum cryptography with a fully decentralized web of trust.
-
-### Hybrid Encryption Architecture
-
-| Component | Description |
-|-----------|-------------|
-| **X25519** | Classical elliptic curve encryption, battle-tested and proven |
-| **ML-KEM-768** | Post-quantum lattice-based encryption (NIST FIPS 203) |
-| **BIP-39 Mnemonic** | User-owned 24-word recovery phrase for key derivation |
-
-Attackers must break **both** X25519 AND ML-KEM to decrypt your data. Even quantum computers cannot break both simultaneously.
-
-**First mainnet transaction with PQC encryption: December 23, 2025.**
-
-### Why Quantum-Safe Now?
-
-- **"Harvest Now, Decrypt Later"**: Adversaries are already collecting encrypted data today, waiting for quantum computers to break it tomorrow. Your identity data must be protected NOW.
-- **Regulatory Alignment**: NIST finalized post-quantum standards in 2024 (FIPS 203, 204, 205). wot.id implements ML-KEM-768, the recommended key encapsulation mechanism.
-- **Defense in Depth**: Hybrid encryption means even if one algorithm is broken, the other still protects your data. No migration needed—your 24-word recovery phrase already protects you.
-
-### Zero-Knowledge Server
-
-All encryption happens **client-side**. wot.id servers **never** see your plaintext data. Only you hold the keys.
-
-```
-Your Data → Client-Side Encryption → Encrypted Blob
-                     ↓
-          Encrypted Blob → IOTA Tangle (permanent storage)
-                     ↓
-          wot.id Server sees: ████████████████
-```
-
----
-
-## How wot.id Compares
-
-| Capability | Traditional SSI | wot.id |
-|------------|-----------------|--------|
-| **Encryption** | Classical (breakable by quantum) | Hybrid X25519 + ML-KEM-768 (quantum-safe) |
-| **Key Storage** | Platform-controlled or HSM | User-owned via BIP-39 mnemonic |
-| **Trust Model** | Centralized issuers | Decentralized peer attestations |
-| **Data Storage** | Off-chain or siloed | 100% on-chain (IOTA Tangle) |
-| **Server Knowledge** | Sees plaintext data | Zero-knowledge (client-side encryption) |
-
----
+wot.id is an open peer-to-peer environment where any digitally connected actor — human, machine, service, or otherwise — can communicate, manage and exchange assets, and handle trust with instantaneous speed, maximum security, and minimal cost. Built upon IOTA's advanced distributed ledger technology, every datapoint is permanently available on a directed acyclic graph (the Tangle), but can only be accessed and controlled by its owner. Every datapoint also has an inbuilt trust level ranging from **-100 to +100** that enables participants to establish and manage complex trust relationships.
 
 ## Take Back Control
 
 For the human actors in the loop, wot.id offers the following advantages:
 
-1. **Clear Human Identification**: Unequivocally and verifiably identify yourself as human within the digital realm.
-2. **True Data Ownership**: Own and control all digitalized aspects of your existence without any intermediaries whatsoever.
-3. **Value Attribution**: Directly receive any value derived from or created with data connected to your identity.
-4. **Selective Disclosure**: Reveal any aspect of your digital existence to anyone, with any desired degree of granularity and anonymity.
-5. **Provenance & Attribution**: Establish a reliable, auditable source of truth for your work, content, and contributions.
+1. **Clear Human Identification**: Unequivocally and verifiably identify yourself as human within the digital realm — a distinction that grows more critical as AI-generated content becomes indistinguishable from human output.
+2. **True Data Ownership**: Own and control all digitalized aspects of your existence without any intermediaries whatsoever. No platform can revoke, suspend, or monetize your identity.
+3. **Value Attribution**: Directly receive any value derived from or created with data connected to your identity. When your data generates profit, that profit flows to you — not to a platform.
+4. **Selective Disclosure**: Reveal any aspect of your digital existence to anyone, with any desired degree of granularity and anonymity. You decide who sees what, and when.
+5. **Provenance & Attribution**: Establish a reliable, auditable source of truth for your work, content, and contributions — essential in an era of deepfakes, misinformation, and uncredited AI training data.
 
----
+These are not aspirational goals. They are operational on the IOTA mainnet today.
 
-## Decentralized Trust Network
 
-Every piece of data carries a trust score from -100 to +100, verified by peer attestations.
-
-```
--100        -50         0          +50        +100
- │           │          │           │           │
- ▼           ▼          ▼           ▼           ▼
-Distrust   Skeptical  Neutral    Trusted    Verified
-```
-
-- Trust scores evolve based on interactions and attestations
-- Multiple actors' assessments contribute to overall trust
-- Context-aware: professional, personal, financial, technical domains
-
----
-
-## True Data Sovereignty
-
-- **You own your DID**: Your Decentralized Identifier (W3C DID) is cryptographically yours. No company can revoke it.
-- **100% On-Chain**: All identity data lives on the IOTA Tangle. To access your data, you need only your DID—not wot.id.
-- **Selective Disclosure**: Reveal only what you choose. Share specific attributes without exposing your full identity.
-
----
-
-## Built On
+**The world's first quantum-safe self-sovereign identity platform.** First mainnet transaction with PQC encryption: December 23, 2025.
 
 | Technology | Purpose |
 |------------|---------|
-| **IOTA** | Feeless DAG-based distributed ledger |
-| **Move** | Secure smart contract language |
-| **W3C DID** | Standard decentralized identifier format |
-| **NIST PQC** | FIPS 203 post-quantum cryptography |
+| **IOTA Tangle** | Feeless DAG-based distributed ledger (Protocol 17 mainnet) |
+| **Move** | Secure smart contract language eliminating 5 of OWASP Top 10 |
+| **W3C DID Core 1.0** | Standard decentralized identifier with Ed25519 + BLAKE3 |
+| **NIST PQC** | Hybrid X25519 + ML-KEM-768 post-quantum encryption (FIPS 203) |
 
 ---
 
 ## Documentation
 
-For detailed information, please refer to the **comprehensive documentation with visual diagrams** in the [`/docs`](docs/) directory. All major documentation files include mermaid diagrams for better understanding of architecture, processes, and data flows.
+The [`/docs`](docs/) directory contains 11 foundational documents — roughly 55,000 lines of code distilled into comprehensive technical and strategic documentation. Each document includes mermaid diagrams for visual understanding of architecture, processes, and data flows.
 
-### Vision, Principles, and Governance
+### The Human Promise (Start Here)
 
-- **[Project Overview and Principles](docs/01_Project_Overview_And_Principles.md)**: Our mission, 10 core principles, and visual ecosystem diagrams
-- **[Governance and Conflict Resolution](docs/10_Governance_And_Conflict_Resolution.md)**: Community-led decision-making with proposal lifecycle diagrams
+- **[01 — Project Overview and Principles](docs/01_Project_Overview_And_Principles.md)**: The mission, the 10 core principles that guide every design decision, and why human sovereignty is the foundation — not an afterthought. This is the document to read first.
 
-### System Architecture and Technology
+### Architecture and Infrastructure
 
-- **[System Architecture](docs/02_System_Architecture.md)**: Four-layer architecture (IOTA L1/L2, Move VM, Rust backend, Next.js frontend)
-- **[IOTA Node and Network](docs/03_IOTA_Node_And_Network.md)**: IOTA Tangle integration and L2 smart contract execution
-- **[Move Smart Contracts](docs/05_Move_Smart_Contracts.md)**: On-chain identity, credentials, and trust logic
-- **[Backend and Identity Service](docs/04_Backend_And_Identity_Service.md)**: Rust/Axum backend with isolated cryptographic operations
-- **[Frontend and User Experience](docs/08_Frontend_And_User_Experience.md)**: Next.js/TypeScript UI with IOTA DApp Kit integration
+- **[02 — System Architecture](docs/02_System_Architecture.md)**: The three-layer stack — Next.js frontend, Rust/Axum backend, IOTA mainnet — and how they interact. Hybrid CLI + SDK approach for blockchain transactions.
+- **[03 — IOTA Node and Network](docs/03_IOTA_Node_And_Network.md)**: IOTA Protocol 17 mainnet integration, CLI-based transaction submission, and the build-time optimization that reduced compilation from 70 minutes to 5.
+- **[04 — Backend and Identity Service](docs/04_Backend_And_Identity_Service.md)**: The Rust backend that orchestrates business logic, the isolated Identity Service for DID generation, gas station sponsorship, and OAuth auto-provisioning.
+- **[05 — Move Smart Contracts](docs/05_Move_Smart_Contracts.md)**: Three core on-chain modules (identity registry, profile storage, trust attestations) plus the FileVault for encrypted document sharing. All deployed on mainnet.
 
 ### Core Features
 
-- **[Trust Architecture](docs/07_Trust_Architecture_And_Management.md)**: Dual-model trust system with transitive trust and aggregation
-- **[P2P Communication](docs/06_P2P_Communication.md)**: End-to-end encrypted messaging between DIDs
-- **[Data Storage and Asset Management](docs/09_Data_Storage_And_Asset_Management.md)**: Decentralized storage with IOTA Kiosk integration
+- **[06 — P2P Communication](docs/06_P2P_Communication.md)**: WebSocket-based peer-to-peer messaging between DIDs, with a roadmap to Signal Protocol and post-quantum end-to-end encryption.
+- **[07 — Trust Architecture](docs/07_Trust_Architecture_And_Management.md)**: The universal -100 to +100 trust scale, dual trust model (entity-level and claim-level), QR code attestation flows, and on-chain reputation. First production attestation: November 19, 2025.
+- **[08 — Frontend and User Experience](docs/08_Frontend_And_User_Experience.md)**: The Next.js interface at [wot.id](https://wot.id) — profile management, asset transfers, trust attestations, P2P messaging, health data with CSV import, and client-side PQC encryption throughout.
+- **[09 — Data Storage and Asset Management](docs/09_Data_Storage_And_Asset_Management.md)**: 100% on-chain data values with 16+ atomic data types, per-value trust scores, and the IOTA Kiosk pattern for digital asset trading.
+
+### Governance and Security
+
+- **[10 — Governance and Conflict Resolution](docs/10_Governance_And_Conflict_Resolution.md)**: On-chain proposal voting with reputation-weighted influence (0.5x to 2.0x multiplier), arbiter-based conflict resolution, and a security threat model covering smart contract, P2P, and quantum attack vectors.
 
 ---
 
