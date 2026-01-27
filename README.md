@@ -30,7 +30,7 @@ These are not aspirational goals. They are operational on the IOTA mainnet today
 
 ## Documentation
 
-The [`/docs`](docs/) directory contains 11 foundational documents — roughly 55,000 lines of code distilled into comprehensive technical and strategic documentation. Each document includes mermaid diagrams for visual understanding of architecture, processes, and data flows.
+Reach out to get access to 55,000 lines of code for examination and discussion at https://github.com/theweboftrust/wot.id, but make sure to study these foundational docs first.
 
 ### The Human Promise (Start Here)
 
