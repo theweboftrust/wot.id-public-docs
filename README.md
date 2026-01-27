@@ -2,7 +2,7 @@
 
 wot.id is an open peer-to-peer environment where any digitally connected actor — human, machine, service, or otherwise — can communicate, manage and exchange assets, and handle trust with instantaneous speed, maximum security, and minimal cost. 
 
-Built upon IOTA's advanced distributed ledger technology (the real cloud), every datapoint is permanently available on a directed acyclic graph (the Tangle), but can only be accessed and controlled by its owner. Every datapoint also has an inbuilt trust level ranging from **-100 to +100** that enables participants to establish and manage complex trust relationships.
+Built upon IOTA's advanced distributed ledger technology (the real cloud), every datapoint is permanently available on a directed acyclic graph, but can only be accessed and controlled by its owner. Every datapoint also has an inbuilt trust level ranging from **-100 to +100** that enables participants to establish and manage complex trust relationships.
 
 ## Take Back Control
 
