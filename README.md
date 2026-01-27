@@ -18,7 +18,7 @@ These are not aspirational goals, the MVP (with all its limitations) is operatio
 
 https://www.wot.id
 
----
+
 
 ## Documentation
 
