@@ -25,25 +25,25 @@ Reach out to get access to 55,000 lines of code for examination and discussion a
 
 ### The Human Promise
 
-- **[01 — Project Overview and Principles](docs/01_Project_Overview_And_Principles.md)**: The mission, the 10 core principles that guide every design decision, and why human sovereignty is the foundation — not an afterthought. This is the document to read first.
+- **[01 — Project Overview and Principles](01_Project_Overview_And_Principles.md)**: The mission, the 10 core principles that guide every design decision, and why human sovereignty is the foundation — not an afterthought. This is the document to read first.
 
 ### Architecture and Infrastructure
 
-- **[02 — System Architecture](docs/02_System_Architecture.md)**: The three-layer stack — Next.js frontend, Rust/Axum backend, IOTA mainnet — and how they interact. Hybrid CLI + SDK approach for blockchain transactions.
-- **[03 — IOTA Node and Network](docs/03_IOTA_Node_And_Network.md)**: IOTA Protocol 17 mainnet integration, CLI-based transaction submission, and the build-time optimization that reduced compilation from 70 minutes to 5.
-- **[04 — Backend and Identity Service](docs/04_Backend_And_Identity_Service.md)**: The Rust backend that orchestrates business logic, the isolated Identity Service for DID generation, gas station sponsorship, and OAuth auto-provisioning.
-- **[05 — Move Smart Contracts](docs/05_Move_Smart_Contracts.md)**: Three core on-chain modules (identity registry, profile storage, trust attestations) plus the FileVault for encrypted document sharing. All deployed on mainnet.
+- **[02 — System Architecture](02_System_Architecture.md)**: The three-layer stack — Next.js frontend, Rust/Axum backend, IOTA mainnet — and how they interact. Hybrid CLI + SDK approach for blockchain transactions.
+- **[03 — IOTA Node and Network](03_IOTA_Node_And_Network.md)**: IOTA Protocol 17 mainnet integration, CLI-based transaction submission, and the build-time optimization that reduced compilation from 70 minutes to 5.
+- **[04 — Backend and Identity Service](04_Backend_And_Identity_Service.md)**: The Rust backend that orchestrates business logic, the isolated Identity Service for DID generation, gas station sponsorship, and OAuth auto-provisioning.
+- **[05 — Move Smart Contracts](05_Move_Smart_Contracts.md)**: Three core on-chain modules (identity registry, profile storage, trust attestations) plus the FileVault for encrypted document sharing. All deployed on mainnet.
 
 ### Core Features
 
-- **[06 — P2P Communication](docs/06_P2P_Communication.md)**: WebSocket-based peer-to-peer messaging between DIDs, with a roadmap to Signal Protocol and post-quantum end-to-end encryption.
-- **[07 — Trust Architecture](docs/07_Trust_Architecture_And_Management.md)**: The universal -100 to +100 trust scale, dual trust model (entity-level and claim-level), QR code attestation flows, and on-chain reputation. First production attestation: November 19, 2025.
-- **[08 — Frontend and User Experience](docs/08_Frontend_And_User_Experience.md)**: The Next.js interface at [wot.id](https://wot.id) — profile management, asset transfers, trust attestations, P2P messaging, health data with CSV import, and client-side PQC encryption throughout.
-- **[09 — Data Storage and Asset Management](docs/09_Data_Storage_And_Asset_Management.md)**: 100% on-chain data values with 16+ atomic data types, per-value trust scores, and the IOTA Kiosk pattern for digital asset trading.
+- **[06 — P2P Communication](06_P2P_Communication.md)**: WebSocket-based peer-to-peer messaging between DIDs, with a roadmap to Signal Protocol and post-quantum end-to-end encryption.
+- **[07 — Trust Architecture](07_Trust_Architecture_And_Management.md)**: The universal -100 to +100 trust scale, dual trust model (entity-level and claim-level), QR code attestation flows, and on-chain reputation. First production attestation: November 19, 2025.
+- **[08 — Frontend and User Experience](08_Frontend_And_User_Experience.md)**: The Next.js interface at [wot.id](https://wot.id) — profile management, asset transfers, trust attestations, P2P messaging, health data with CSV import, and client-side PQC encryption throughout.
+- **[09 — Data Storage and Asset Management](09_Data_Storage_And_Asset_Management.md)**: 100% on-chain data values with 16+ atomic data types, per-value trust scores, and the IOTA Kiosk pattern for digital asset trading.
 
 ### Governance and Security
 
-- **[10 — Governance and Conflict Resolution](docs/10_Governance_And_Conflict_Resolution.md)**: On-chain proposal voting with reputation-weighted influence (0.5x to 2.0x multiplier), arbiter-based conflict resolution, and a security threat model covering smart contract, P2P, and quantum attack vectors.
+- **[10 — Governance and Conflict Resolution](10_Governance_And_Conflict_Resolution.md)**: On-chain proposal voting with reputation-weighted influence (0.5x to 2.0x multiplier), arbiter-based conflict resolution, and a security threat model covering smart contract, P2P, and quantum attack vectors.
 
 ---
 
