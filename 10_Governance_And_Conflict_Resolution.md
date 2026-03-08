@@ -533,4 +533,8 @@ The wot.id governance model is expected to evolve over time. Areas for future co
 *   **Scalability of Governance**: Ensuring that governance processes can scale effectively as the wot.id network and community grow.
 *   **Cross-Chain Governance Interactions**: If wot.id interoperates with other networks, considering how governance decisions might be coordinated or recognized across different ecosystems.
 
+---
+
+> **Note (2026-03-07):** The governance proposal system described in this document has Move contract support (`TrustProposal` struct and voting functions in `wot_trust.move`, deployed on mainnet) but no backend API or frontend UI. The REST endpoints that were planned for Phase 2 (August 2025) were mock implementations returning fabricated data and were deleted on 2026-03-07. The IOTA Notarization SDK was evaluated in January 2026 and explicitly rejected — wot.id's native attestation system provides a superset of notarization functionality. See `docs/2026_Code_Work/26-03-07_Dead_Endpoints_Audit.md` and `docs/2026_Code_Work/26-01-03_IOTA_Notarization_vs_wotid.md` for details.
+
 Continuous community feedback and adaptation will be essential to ensure the governance model remains effective, fair, and aligned with the core principles of wot.id.
