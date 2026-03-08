@@ -1,6 +1,6 @@
-# 04: wot.id - Backend and Identity Service
+# 04: wot.id - Backend API
 
-## **Current Implementation Status (January 2026)**
+## **Current Implementation Status (March 2026)**
 
 ### **🎯 Working Components**
 - **Backend API**: Axum-based REST API with hybrid CLI + SDK types approach
@@ -8,30 +8,36 @@
 - **Hybrid Economic Model**: Gas sponsorship for profile creation & core operations; attestation rewards fund user transfers
 - **Personal Wallets**: Client-side wallet in browser IndexedDB, user controls mnemonic
 - **Zero Database**: Blockchain is the single source of truth for identity data
-- **Identity Service**: W3C DID Core 1.0 compliant generation (Ed25519 + BLAKE3)
+- **Integrated DID Generation**: W3C DID Core 1.0 compliant (Ed25519 + BLAKE3), inlined into Backend
 - **P2P Communication**: WebSocket relay with E2E encryption (Phase D complete)
+- **Error Handling**: Comprehensive `ApiError` types with structured responses and request ID tracking
+- **Input Validation**: `InputValidator` for DIDs, trust levels, credentials, claims, and privacy settings
 
 ### **✅ Architecture Achievements**
-- **Hybrid CLI + SDK Types**: CLI for transactions, iota-sdk v1.13.1 for type safety
+- **Hybrid CLI + SDK Types**: CLI for transactions, iota-sdk v1.17.2 for type safety
 - **Event-Based Indexing**: Query `ProfileRegistered` events for DID lookups
-- **Shared Registry**: Permissionless on-chain registry at `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (v6)
+- **Shared Registry**: Permissionless on-chain registry at `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (v7)
 - **Production Operational**: OAuth auto-provisioning working (Google, GitHub, Apple)
-- **Protocol 17**: Deployed on IOTA mainnet Protocol 17
+- **Protocol 20**: Deployed on IOTA mainnet Protocol 20 (v1.17.2)
+- **Single Service**: Identity Service retired and inlined into Backend (March 2026)
 
 ### **🚀 Current Architecture Benefits**
-- **No Traditional Database**: All identity data stored on IOTA mainnet Protocol 17
+- **No Traditional Database**: All identity data stored on IOTA mainnet Protocol 20
 - **Decentralized Lookups**: Anyone can query registry without API access
 - **Hybrid Economic Model**: Profile creation gas-sponsored; transfers user-funded
 - **Personal Wallets**: Client-side browser storage (IndexedDB), users control keys, mnemonic export/import for device switch
 - **Rate Limiting**: 24h cooldown prevents abuse and controls costs
-- **W3C DID Compliant**: Ed25519 + BLAKE3 cryptographic derivation
+- **W3C DID Compliant**: Ed25519 + BLAKE3 cryptographic derivation (integrated into Backend)
 - **P2P Messaging**: WebSocket relay with E2E encryption (X25519 + ML-KEM-768)
+- **No Microservice Overhead**: DID generation, JWT auth, and blockchain interaction all in one service
 
 ---
 
 ## 1. High-Level Architecture
 
-The `wot.id` backend consists of two core Rust microservices: the **Backend API** (the main orchestrator) and the **Identity Service** (a specialized DID management service). This separation is a deliberate architectural choice to isolate dependencies and manage complexity.
+The `wot.id` backend is a single Rust service: the **Backend API**. It handles all client-facing requests, DID generation, JWT authentication, blockchain interaction, and P2P relay.
+
+> **History**: The Backend API was originally split into two microservices — a Backend API and a separate Identity Service (port 8081). The Identity Service was separated in June 2025 to isolate `identity_iota` SDK dependency conflicts. After 7 months of dependency hell, the SDK was abandoned and the Identity Service was reduced to ~35 lines of Ed25519+BLAKE3 DID generation logic. On 2026-03-07, this logic was inlined into the Backend and the Identity Service was retired. See `docs/2026_Code_Work/26-03-07_Identity_Service.md` for the full history.
 
 ```mermaid
 graph TD
@@ -39,82 +45,71 @@ graph TD
         Client[Client App]
     end
 
-    subgraph Service Layer
-        Backend[Backend API<br/>Port 8080]
-        Identity[Identity Service<br/>Port 8081]
+    subgraph Backend API
+        Backend[Backend API<br/>Port 10000]
+        DID[DID Generation<br/>Ed25519 + BLAKE3]
+        Auth[JWT Auth<br/>HS256]
+        Validation[Input Validation]
+        ErrorHandling[Error Handling<br/>ApiError types]
     end
 
     subgraph IOTA Infrastructure
-        Mainnet[IOTA Mainnet<br/>Protocol 17]
-        Node[IOTA Mainnet<br/>Protocol 17]
-        CLI[IOTA CLI<br/>PTB Construction]
-        Contracts[Move Contracts<br/>wot_identity_registry]
+        Mainnet[IOTA Mainnet<br/>Protocol 20]
+        CLI[IOTA CLI v1.17.2<br/>PTB Construction]
+        Contracts[Move Contracts<br/>wot_identity_registry v7]
     end
 
     Client -- HTTP REST --> Backend
-    Backend -- HTTP REST --> Identity
+    Backend --> DID
+    Backend --> Auth
+    Backend --> Validation
+    Backend --> ErrorHandling
     Backend -- CLI Commands --> CLI
     CLI -- JSON-RPC --> Mainnet
     Mainnet -- Executes --> Contracts
-    Identity -- W3C DID --> Backend
-    Backend -- iota-sdk types --> Backend
+    Backend -- iota-sdk v1.17.2 types --> Backend
 
     style Backend fill:#ffe4cd
-    style Identity fill:#d4ffd1
     style Mainnet fill:#cde4ff
     style CLI fill:#fcf5c7
 ```
 
 ### 1.1. W3C DID Implementation
 
-**Current Implementation (January 2026): W3C DID Core 1.0 Compliant**
+**Current Implementation (March 2026): W3C DID Core 1.0 Compliant**
 
-The Identity Service generates W3C DID Core 1.0 compliant identifiers:
+The Backend API generates W3C DID Core 1.0 compliant identifiers directly (no external service call):
 
-**What Identity Service Does:**
+**DID Generation (integrated in Backend API):**
 - ✅ Generates Ed25519 keypairs for each new identity
 - ✅ Derives DID from public key hash using BLAKE3
 - ✅ Creates `did:iota:mainnet:<blake3-hash-of-pubkey>` strings
-- ✅ Generates proper W3C DID Documents (@context, verificationMethod, authentication)
-- ✅ Returns DID string + public key to Backend API
-- ✅ **Status:** Production deployed and operational
+- ✅ Stores DID + profile data on-chain via IOTA CLI
+- ✅ Manages secondary identifier → DID mappings in `wot_identity_registry.move`
+- ✅ Manages all on-chain interactions via IOTA CLI (with iota-sdk v1.17.2 types)
 
-**What Identity Service Does NOT Do:**
-- ❌ Does NOT store data on-chain (that's Backend API's job)
-- ❌ Does NOT interact with Move contracts
-- ❌ Does NOT store secondary identifier→DID mappings
-- ❌ Does NOT manage profile data or trust scores
+**DID Generation Code** (`backend/src/handlers/identity.rs`):
+```rust
+let signing_key = ed25519_dalek::SigningKey::from_bytes(&rand::random::<[u8; 32]>());
+let verifying_key = signing_key.verifying_key();
+let did_hash = blake3::hash(&verifying_key.to_bytes());
+let did_identifier = hex::encode(&did_hash.as_bytes()[0..16]);
+let did = format!("did:iota:mainnet:{}", did_identifier);
+```
 
 **Current Implementation Hierarchy:**
 
 ```
 W3C DID Core v1.0 (International Standard)
   ↓ compliant
-Identity Service (Production)
+Backend API (Production — single service)
   - Ed25519 keypair generation
   - BLAKE3 cryptographic hash
   - did:iota:mainnet:<hash> format
-  - W3C DID Document generation
-  ↓ returns DID string to
-Backend API (stores in Move contracts)
+  - On-chain storage via IOTA CLI PTB
   ↓ stores
 On-Chain: DID + Email→DID mappings + VALUES + trust scores
 ```
-
-**Identity Service vs Backend API Responsibilities:**
-
-**Identity Service:**
-- Generates Ed25519 keypairs
-- Derives DIDs from public key: `did:iota:mainnet:<blake3(pubkey)>`
-- Generates W3C-compliant DID Documents
-- Returns DID string like `did:iota:mainnet:af364f192213f8d9ac1425ce2a62a051`
-
-**Backend API:**
-- Receives DID string from Identity Service
-- Stores DID string in `wot_identity.move` profile object
-- Stores secondary identifier → DID mappings in `wot_identity_registry.move`
-- Stores atomic data VALUES with trust scores
-- Manages all on-chain interactions via IOTA CLI (with iota-sdk v1.13.1 types)
 
 **W3C Compliance:**
 - ✅ DID Syntax (§3.1): `did:iota:mainnet:<identifier>`
@@ -149,70 +144,75 @@ On-Chain: DID + Email→DID mappings + VALUES + trust scores
 User logs in with OAuth → obtains identifier (email)
 Backend queries: wot_identity_registry::lookup_by_identifier("email", "user@example.com")
   If found: Load existing profile via DID
-  If not found: Create DID via Identity Service, call register_identifier()
+  If not found: Generate DID inline (Ed25519 + BLAKE3), call register_identifier()
 Display ME page with on-chain VALUES
 ```
 
-**Current Status (January 2026):**
-- ✅ DID creation via Identity Service working (W3C compliant)
+**Current Status (March 2026):**
+- ✅ DID generation integrated in Backend API (W3C compliant)
 - ✅ Secondary Identifier→DID mapping IMPLEMENTED
 - ✅ `wot_identity_registry::register_identifier()` operational on mainnet
 - ✅ OAuth auto-provisioning working (Google, GitHub, Apple)
 
-### Separation of Responsibilities
+### Backend API Responsibilities
 
-| Feature / Responsibility                  | Backend API                                                              | Identity Service                                                                  |
-|-------------------------------------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------------------|
-| **Primary Role**                          | System Orchestrator & Gas Station                                        | W3C DID Core 1.0 Generator                                                        |
-| **Client-Facing API**                     | Yes (Main entry point for frontends)                                     | No (Internal service only)                                                        |
-| **DID Operations**                        | Delegates DID creation to Identity Service                               | Generates W3C DID format-compatible identifiers (Ed25519 + BLAKE3)               |
-| **Smart Contract Interaction**            | All Move contract calls via IOTA CLI (wot_identity_registry, wot_identity)  | None (only generates DID strings)                                             |
-| **Database**                              | **None** - queries blockchain via events and CLI                        | None                                                                              |
-| **Key Dependency**                        | `axum`, `tokio`, IOTA CLI, iota-sdk v1.13.1 (types), rate limiter, `sha3`       | `ed25519-dalek`, `blake3`                                                         |
-| **Async Runtime (Tokio)**                 | v1.45.0+                                                                 | v1.43.0+                                                                          |
-| **IOTA Integration**                       | Hybrid CLI + SDK types (CLI for transactions, SDK for type definitions) | None (pure DID generation)                                                        |
-
-**Primary Rationale for Separation**: Separation of concerns - Identity Service focuses solely on cryptographic DID generation, while Backend API handles all blockchain interactions, business logic, and OAuth integration. Independent deployment and scaling.
+| Feature / Responsibility                  | Backend API                                                              |
+|-------------------------------------------|--------------------------------------------------------------------------|
+| **Primary Role**                          | System Orchestrator, Gas Station, & DID Generator                        |
+| **Client-Facing API**                     | Yes (Main entry point for frontends)                                     |
+| **DID Operations**                        | Generates W3C DID identifiers inline (Ed25519 + BLAKE3)                  |
+| **Smart Contract Interaction**            | All Move contract calls via IOTA CLI (wot_identity_registry, wot_identity)  |
+| **Database**                              | **None** - queries blockchain via events and CLI                        |
+| **Key Dependencies**                      | `axum`, `tokio`, IOTA CLI, iota-sdk v1.17.2 (types), `ed25519-dalek`, `blake3`, `sha3` |
+| **Async Runtime (Tokio)**                 | v1.46.1+                                                                |
+| **IOTA Integration**                       | Hybrid CLI + SDK types (CLI for transactions, SDK for type definitions) |
+| **Error Handling**                        | Structured `ApiError` types with request ID tracking (`backend/src/error.rs`) |
+| **Input Validation**                      | `InputValidator` for DIDs, trust levels, claims (`backend/src/validation.rs`) |
 
 ---
 
 ## 2. Backend API
 
-### 2.1. Current Status (December 2025)
+### 2.1. Current Status (March 2026)
 
-**Build Status**: ✅ Building successfully (~27-30 minutes with iota-sdk types)
+**Build Status**: ✅ Building successfully (~30 minutes with iota-sdk types)
 **Deployment Status**: ✅ **PRODUCTION OPERATIONAL** at https://wot-id-backend.onrender.com
-**Technology**: Rust, Axum (v0.8+), Tokio (v1.45.0+)
-**IOTA Integration**: Hybrid CLI + SDK types (CLI for transactions, iota-sdk v1.13.1 for types)
-**Protocol**: IOTA mainnet Protocol 17
-**Framework Version**: Move contracts v1.11.0 (backward compatible with Protocol 17)
+**Technology**: Rust, Axum (v0.8+), Tokio (v1.46.1+)
+**IOTA Integration**: Hybrid CLI + SDK types (CLI for transactions, iota-sdk v1.17.2 for types)
+**Protocol**: IOTA mainnet Protocol 20
+**Framework Version**: Move contracts v1.17.2 (backward compatible)
+**Dockerfile**: `rust:1.88-slim` base image, IOTA CLI v1.17.2
 
-**Production Features (January 2026):**
+**Production Features (March 2026):**
 - ✅ OAuth auto-provisioning (Google, GitHub, Apple)
 - ✅ Profile creation with gas sponsorship
 - ✅ Email → DID mapping (`wot_identity_registry`)
+- ✅ Integrated DID generation (Ed25519 + BLAKE3, W3C DID Core 1.0)
 - ✅ 24-hour rate limiting per DID
-- ✅ W3C DID Core 1.0 compliant (Ed25519 + BLAKE3)
 - ✅ Event-based profile retrieval
 - ✅ QR code attestations (cross-device flow)
 - ✅ On-chain attestation submission via wot_trust.move
 - ✅ Post-quantum encryption (X25519 + ML-KEM-768)
+- ✅ Structured error handling (`ApiError` with request ID tracking)
+- ✅ Input validation (`InputValidator` for DIDs, claims, trust levels)
 
 **Ports**:
-- Production: https://wot-id-backend.onrender.com
-- Local Development: `localhost:8080`
+- Production: https://wot-id-backend.onrender.com (port 10000)
+- Local Development: `localhost:10000`
 
 **Current Architecture:**
-- ✅ **IDENTITY REGISTRY**: `wot_identity_registry` - Email → DID mappings on Protocol 17
+- ✅ **IDENTITY REGISTRY**: `wot_identity_registry` - Email → DID mappings on Protocol 20
+- ✅ **INTEGRATED DID GENERATION**: Ed25519 + BLAKE3 (formerly in Identity Service, inlined March 2026)
 - ✅ **HYBRID ECONOMIC MODEL**: Profile creation gas-sponsored; transfers self-funded via personal wallets
 - ✅ **PERSONAL WALLETS**: Auto-assigned IOTA wallet per user (Dec 2025); mnemonic exportable
 - ✅ **ZERO DATABASE**: All identity data stored on-chain, blockchain is single source of truth
-- ✅ **HYBRID CLI + SDK TYPES**: CLI for PTB submission, iota-sdk v1.13.1 for type definitions
+- ✅ **HYBRID CLI + SDK TYPES**: CLI for PTB submission, iota-sdk v1.17.2 for type definitions
 - ✅ **EVENT-BASED LOOKUPS**: Query on-chain events for profile retrieval
 - ✅ **ATTESTATION SYSTEM**: wot_trust.move contract for on-chain attestations (Nov 19 2025)
 - ✅ **P2P MESSAGING**: WebSocket relay at `/ws/p2p/{peer_id}` (Dec 2025)
 - ✅ **TRANSFER SYSTEM**: User-funded transfers with QR code support (Dec 2025)
-- ⚠️ **WALLET ARCHITECTURE SHIFT (Dec 21, 2025)**: Moving from backend wallet storage to client-side IndexedDB. See `docs/2025_Code_Work/25-12-21_Client_Side_Wallet.md`
+- ✅ **ERROR HANDLING**: Structured `ApiError` types with HTTP status mapping (`backend/src/error.rs`)
+- ✅ **INPUT VALIDATION**: DID format, trust levels, claims, privacy settings (`backend/src/validation.rs`)
 
 ### 2.2. API Endpoints (Implemented with Move Contract Integration)
 
@@ -245,10 +245,10 @@ Display ME page with on-chain VALUES
 | `GET`  | `/api/identity/service-endpoint` | **IMPLEMENTED (Dec 2025)**: Get P2P service endpoint for DID                                         |
 | `POST` | `/api/identity/service-endpoint` | **IMPLEMENTED (Dec 2025)**: Set P2P service endpoint on TrustProfile                                 |
 | `WS`   | `/ws/p2p/{peer_id}`         | **IMPLEMENTED (Dec 2025)**: WebSocket relay for P2P messaging between browsers                             |
-| `POST` | `/api/proposals/create`     | **PHASE 2**: Create trust proposals with Move contract PTB preview                                         |
-| `POST` | `/api/proposals/vote`       | **PHASE 2**: Vote on trust proposals with Move contract PTB preview                                       |
-| `POST` | `/api/proposals/execute`    | **PHASE 2**: Execute approved proposals with Move contract PTB preview                                    |
-| `GET`  | `/api/proposals/:id/status` | **PHASE 2**: Get proposal status and voting information                                                   |
+
+> **Note (2026-03-07):** Four governance proposal endpoints (`/api/proposals/*`) and two notarization endpoints were deleted on 2026-03-07. They were mock implementations returning fabricated data. The Move contract structs (`TrustProposal`, voting functions) remain deployed on mainnet but have no API callers. See `docs/2026_Code_Work/26-03-07_Dead_Endpoints_Audit.md`.
+>
+> Additionally, 9 debug/test/stale endpoints were deleted from the Backend (including `GET /api/debug/export-key` which was an active security vulnerability). See same audit doc for full list.
 
 ### 2.3. DID Ownership Verification (Option C)
 
@@ -580,37 +580,35 @@ Claims {
 
 ---
 
-## 3. Identity Service
+## 3. Identity Service (RETIRED — March 2026)
 
-The Identity Service is a focused microservice designed to encapsulate all logic for managing IOTA DIDs.
-
-*   **Technology**: Rust, Axum, Tokio (v1.43.0), `identity_iota` SDK
-*   **Port**: `8081`
-*   **Deployment**: https://wot-id.onrender.com
-
-> **Current Status: ✅ IMPLEMENTED LOCALLY**
-> The Identity Service is **fully functional locally** with W3C DID document creation working. JWT authentication is operational in local development. The service requires codebase cleanup before production redeployment.
+> **The Identity Service microservice has been retired.** Its DID generation logic (~15 lines) has been inlined into the Backend API. The Render deployment at https://wot-id.onrender.com is no longer called by the Backend.
 >
-> ⚠️ **Production Deployment:** Render deployment at https://wot-id.onrender.com contains legacy code from earlier architecture.
+> For the full history, rationale, and execution log, see `docs/2026_Code_Work/26-03-07_Identity_Service.md`.
 
-### API Endpoints (Implemented)
+**What was inlined:**
+- Ed25519 keypair generation + BLAKE3 DID derivation → `backend/src/handlers/identity.rs`
+- JWT token generation → already existed in `backend/src/auth.rs`
 
-| Method | Path           | Description                                                                                                   |
-|--------|----------------|---------------------------------------------------------------------------------------------------------------|
-| `GET`  | `/health`      | Returns the health status of the Identity Service itself.                                                     |
-| `POST` | `/auth/token`  | **IMPLEMENTED**: Generates JWT tokens for frontend authentication with configurable client types             |
-| `POST` | `/create-did`  | **IMPLEMENTED**: Creates a new IOTA DID on-chain by interacting with the deployed `Identity` Move contract. Returns the new DID with Move contract PTB preview. |
-| `POST` | `/verify-signature` | **IMPLEMENTED**: Verifies DID signatures using JWS structure validation and challenge verification      |
+**What was deleted:**
+- `create_identity_profile()` — the only Backend function that called the Identity Service
+- `identity_service_url` from AppState
+- Identity Service health check from Backend health endpoint
+
+**Why it was retired:**
+- The `identity_iota` SDK dependency that justified the separation was removed in June 2025
+- The service was reduced to ~35 lines of pure crypto logic that the Backend already had dependencies for
+- The only caller was a test endpoint, not the production user flow
+- Maintaining a separate microservice incurred ongoing Dockerfile/deployment/secret synchronization overhead
 
 ---
 
 ## 4. Current Integration Status
 
-### 4.1. Service Integration Overview
+### 4.1. Service Overview
 
-**All Services Operational**: Both Backend API and Identity Service are fully deployed and operational:
-- **Backend API**: https://wot-id-backend.onrender.com
-- **Identity Service**: https://wot-id.onrender.com
+**Production Services:**
+- **Backend API**: https://wot-id-backend.onrender.com (Render)
 - **Frontend**: https://www.wot.id (Vercel)
 
 ### 4.2. JWT Authentication Flow
@@ -620,22 +618,21 @@ The Identity Service is a focused microservice designed to encapsulate all logic
 ```mermaid
 sequenceDiagram
     participant Frontend
-    participant IdentityService as Identity Service
     participant BackendAPI as Backend API
-    
-    Frontend->>+IdentityService: POST /auth/token
-    Note over IdentityService: Generate JWT with synchronized secret
-    IdentityService-->>-Frontend: JWT Token
-    
+
+    Frontend->>+BackendAPI: POST /api/auth/exchange (with OAuth session)
+    Note over BackendAPI: Generate JWT with HS256
+    BackendAPI-->>-Frontend: JWT Token
+
     Frontend->>+BackendAPI: GET /api/identity/me (with JWT)
-    Note over BackendAPI: Validate JWT with same secret
+    Note over BackendAPI: Validate JWT
     BackendAPI-->>-Frontend: User Profile Data
 ```
 
 **Key Features**:
-- **Synchronized JWT Secrets**: Both services use the same secret for token generation/validation
-- **Scoped Access**: JWT tokens include appropriate scopes (e.g., "read:identity")
-- **Production Ready**: CORS configured, HTTPS endpoints, proper error handling
+- **Single Service JWT**: Backend generates and validates all JWTs
+- **Scoped Access**: JWT tokens include appropriate scopes (e.g., "profile:write", "profile:read")
+- **Production Ready**: CORS configured, HTTPS endpoints, structured error handling
 
 ### 4.3. Real Data Flow
 
@@ -644,7 +641,7 @@ sequenceDiagram
 - Returns: Complete lab values (LDL/HDL Cholesterol, Kreatinin, GFR Cystatin, TSH, Vitamins)
 - Authentication: JWT required
 
-**Identity Data**: ✅ Working  
+**Identity Data**: ✅ Working
 - Endpoint: `GET /api/identity/me`
 - Returns: Comprehensive user profile (personal info, documents, education, skills)
 - Authentication: JWT required
@@ -662,21 +659,20 @@ sequenceDiagram
 
 This flow shows the current W3C DID Core 1.0 compliant DID creation process.
 
-**Current Status**: Ed25519 + BLAKE3 cryptographic DID generation with on-chain storage.
+**Current Status**: Ed25519 + BLAKE3 cryptographic DID generation with on-chain storage, all within Backend API.
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant Backend API
-    participant Identity Service
-    participant IOTA Node
+    participant IOTA Mainnet
 
-    Client->>+Backend API: POST /register-user
-    Backend API->>+Identity Service: POST /create-did
-    Identity Service->>+IOTA Node: JSON-RPC (Execute `Identity::new` PTB)
-    IOTA Node-->>-Identity Service: Transaction Confirmed
-    Identity Service-->>-Backend API: 200 OK (with new DID)
-    Backend API-->>-Client: 200 OK (Registration successful)
+    Client->>+Backend API: POST /api/identity (with OAuth JWT)
+    Note over Backend API: Generate Ed25519 keypair
+    Note over Backend API: BLAKE3(pubkey) → DID identifier
+    Backend API->>+IOTA Mainnet: IOTA CLI PTB (register_identifier)
+    IOTA Mainnet-->>-Backend API: Transaction Confirmed
+    Backend API-->>-Client: 200 OK (DID + profile created)
 ```
 
 ### System Health Check Sequence
@@ -687,15 +683,12 @@ This flow shows how the Backend API provides a consolidated health status.
 sequenceDiagram
     participant Monitor
     participant Backend API
-    participant Identity Service
     participant IOTA Node
 
     Monitor->>+Backend API: GET /health
-    Backend API->>+Identity Service: GET /health
-    Identity Service-->>-Backend API: 200 OK
     Backend API->>+IOTA Node: JSON-RPC (rpc.discover)
     IOTA Node-->>-Backend API: 200 OK
-    Backend API-->>-Monitor: 200 OK (Consolidated Status)
+    Backend API-->>-Monitor: 200 OK (Backend + IOTA status)
 ```
 
 ---
@@ -704,90 +697,82 @@ sequenceDiagram
       }
     }
     ```
-    The `Identity Service` then processes this JSON-RPC response (success or error), translates it into its own HTTP REST API response format, and returns that to the `Backend API` (e.g., the new DID document or an appropriate HTTP error).
-6.  The `Backend API` receives the published DID document (or relevant DID information) from the `Identity Service` and then proceeds with any further application-specific logic (e.g., associating the DID with a user profile) before responding to the original client application.
-
 ## 5. Configuration (Environment Variables)
 
-Both services rely on environment variables for configuration:
+The Backend API relies on environment variables for configuration:
 
-- **`BACKEND_PORT=8080`**: Specifies the port on which the `Backend API` listens.
-- **`IDENTITY_SERVICE_URL=http://127.0.0.1:8081`**: The full URL the `Backend API` uses to connect to the `Identity Service`.
-- **`IOTA_NODE_URL=https://api.mainnet.iota.cafe`**: The URL for the IOTA mainnet JSON-RPC endpoint (or local node `http://127.0.0.1:9000`). This is used by:
-    - The `Backend API` for CLI-based PTB construction and event queries to the identity registry.
-    - The `Identity Service` (via the `identity_iota` SDK) for W3C DID document creation only.
-- **`IOTA_REGISTRY_PACKAGE_ID=0xf8ddc1060e855f09e30e62e74b4355048b2c50c582b68cceaf6f84366cfe8eee`**: Package ID of the **identity registry** (December 29, 2025 v6 deployment).
+- **`PORT=10000`**: Specifies the port on which the `Backend API` listens (Render default).
+- **`IOTA_NODE_URL=https://api.mainnet.iota.cafe`**: The URL for the IOTA mainnet JSON-RPC endpoint (or local node `http://127.0.0.1:9000`). Used for CLI-based PTB construction and event queries.
+- **`IOTA_PRIVATE_KEY`**: Ed25519 private key for the Backend's IOTA keystore (imported at container startup).
+- **`JWT_SECRET_KEY`**: HS256 secret for JWT generation and validation.
+- **`IOTA_REGISTRY_PACKAGE_ID=0xa389f9b55c811064e53bf1ee84900cafdcbbe05a3cf37bc7086a399ca5f2a8cb`**: Package ID of the identity registry (January 9, 2026 v7 deployment with FileVault module).
 - **`IOTA_REGISTRY_OBJECT_ID=0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92`**: Shared registry object for DID→Profile ID mappings.
+
+> **Note**: `IDENTITY_SERVICE_URL` was removed on 2026-03-07 when the Identity Service was retired.
 
 ## 6. Deployment and Operational Notes
 
-- Both the `Backend API` and `Identity Service` are run as separate processes.
-- They can be deployed as separate containers or native processes.
-- Startup order (as mentioned in `02_System_Architecture.md`): IOTA Node first, then Identity Service, then Backend API.
+- The Backend API is deployed as a single Docker container on Render.
+- **Dockerfile base image**: `rust:1.88-slim` (required for IOTA SDK Edition 2024 features)
+- **IOTA CLI**: v1.17.2 installed in Docker image
+- **Build time**: ~30 minutes (iota-sdk transitive dependencies pull full SDK despite `default-features = false`)
+- **Binary size**: ~13M
 
 ## 7. Architectural Benefits & Current Status
 
-### 7.1. Proven Microservice Architecture
+### 7.1. Unified Service Architecture
 
-The microservice architecture for the `Identity Service` has proven successful in production, providing significant benefits:
+The Backend API handles all responsibilities in a single service, eliminating microservice overhead:
 
-**✅ Operational Benefits Realized**:
-- **Focused Responsibility**: Each service has clear, well-defined responsibilities
-- **Dependency Isolation**: Tokio version conflicts successfully resolved through separation
-- **Independent Deployment**: Services can be updated and deployed independently
-- **Security Boundaries**: Clear authentication and authorization boundaries between services
-- **Scalability**: Each service can be scaled independently based on demand
+**✅ Operational Benefits:**
+- **No Network Hops**: DID generation, auth, and blockchain interaction all in one process
+- **Single Deployment**: One Dockerfile, one Render service, one set of environment variables
+- **No Secret Synchronization**: JWT secret only needs to exist in one place
+- **Simplified Health Check**: Backend + IOTA node only (no Identity Service dependency)
+- **Structured Error Handling**: `ApiError` types with HTTP status mapping and request ID tracking
+- **Input Validation**: `InputValidator` for all API inputs (DIDs, trust levels, claims)
 
-**✅ Production Validation**:
-- Both services successfully deployed and operational on Render
-- JWT authentication working seamlessly across service boundaries
-- Real data flowing from backend services to frontend
+**✅ Production Validation:**
+- Backend successfully deployed on Render (Protocol 20, v1.17.2)
+- OAuth → JWT → profile creation flow working end-to-end
+- Real data flowing from backend to frontend
 - Comprehensive error handling and graceful degradation
 
 ### 7.2. Future Evolution
 
-- **Monitoring IOTA Identity Ecosystem**: The `wot.id` project will continue to monitor updates to the `identity_iota` SDK, `iota-sdk`, and the IOTA Identity framework.
-- **Architectural Stability**: The current microservice architecture is well-justified by its modularity and clear separation of concerns. It has proven effective in production and will be retained for its strategic advantages, allowing the `Identity Service` to evolve as a specialized component dedicated to IOTA identity management.
+- **Monitoring IOTA Identity Ecosystem**: The `wot.id` project will continue to monitor updates to the `identity_iota` SDK (currently v1.9.2-beta.1, adoption deferred until stable). See `docs/2026_Code_Work/26-03-07_Environment_Status.md`.
+- **Re-introduction Path**: If the Identity SDK stabilizes, it can be re-introduced as a feature-flagged module within the Backend, or as a separate service again if dependency isolation is needed.
+- **Protocol 21**: Already on testnet (v1.18.1-rc). Next upgrade will be a smaller gap.
 
 ---
 
 ## 8. Integration Achievements
 
-### 8.1. JWT Authentication Integration Success
-
-**Problem Resolved**: JWT secret synchronization between services
-- **Root Cause**: Backend API and Identity Service were using different JWT secrets
-- **Solution**: Synchronized JWT_SECRET_KEY across both Render deployments
-- **Result**: End-to-end JWT authentication working perfectly
+### 8.1. JWT Authentication
 
 **Technical Implementation**:
-- JWT secret: `ed5d12ec08d7ea1d72f9e9c37ad678f18b05b46e6b9e8e200ef04797fdf01ccc`
 - Algorithm: HS256 with proper claims structure (sub, iss, aud, exp, iat, jti, scope)
+- Single service handles both generation and validation
 - CORS configuration: Production domains properly configured
 - Error handling: Comprehensive logging and graceful degradation
 
-### 8.2. Backend Identity API Re-enablement
-
-**Problem Resolved**: Identity API routes were disabled during JWT debugging
-- **Root Cause**: Contract configuration commented out in main.rs
-- **Solution**: Re-enabled contract configuration and identity routes
-- **New Endpoint**: `/api/identity/me` for current user profile
+### 8.2. Backend Identity API
 
 **Implementation Details**:
-- Contract configuration uses **identity registry package**: `0xf8ddc1060e855f09e30e62e74b4355048b2c50c582b68cceaf6f84366cfe8eee` (December 29, 2025 v6 deployment)
+- Contract configuration uses **identity registry package**: `0xa389f9b55c811064e53bf1ee84900cafdcbbe05a3cf37bc7086a399ca5f2a8cb` (January 9, 2026 v7 deployment with FileVault)
 - CLI-based PTB construction for all on-chain operations
 - Event-based profile lookups via `ProfileRegistered` events
 - Real data flow from backend to frontend components
+- Protocol 20 error parsing (human-readable Move Abort format alongside legacy format)
 
 ### 8.3. Production Deployment Status
 
 **All Services Operational**:
 - ✅ **Frontend**: https://www.wot.id (Vercel)
 - ✅ **Backend API**: https://wot-id-backend.onrender.com (Render)
-- ✅ **Identity Service**: https://wot-id.onrender.com (Render)
 
 **Key Metrics**:
-- Response times: < 100ms for identity profile retrieval
+- Response times: < 100ms for identity profile retrieval (with cache)
 - Authentication success rate: 100% with valid JWT tokens
 - Data completeness: Full health and identity profiles available
 - Error handling: Graceful fallback to demo data when needed
@@ -997,4 +982,3 @@ The IOTA Identity project is open source and welcomes community contributions. T
 | **GitHub Repository** | Report bugs, suggest features, or contribute code directly to the `identity.rs` repository. | [identity.rs on GitHub](https://github.com/iotaledger/identity.rs) |
 | **Documentation** | Improve the official documentation by fixing errors or adding new content. | [Contribution Guidelines](https://docs.iota.org/references/contribute/contribution-process) |
 | **Community Support** | Share knowledge and help others by participating in discussions on the IOTA Builders Discord. | [IOTA Builders Discord (#identity-dev)](https://discord.gg/iota-builders) |
-
