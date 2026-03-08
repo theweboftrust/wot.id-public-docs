@@ -2,15 +2,15 @@
 
 ## 1. Introduction
 
-**IOTA Protocol 17 Mainnet**
+**IOTA Protocol 20 Mainnet**
 
 This document provides comprehensive guidance for IOTA mainnet connectivity for `wot.id` development and production. The current architecture uses a **hybrid CLI + SDK types approach** with emphasis on the public IOTA mainnet endpoint, with local node setup optional.
 
 **Current Architecture (December 2025)**:
-- **IOTA Mainnet**: Protocol 17 via public endpoint `https://api.mainnet.iota.cafe`
+- **IOTA Mainnet**: Protocol 20 via public endpoint `https://api.mainnet.iota.cafe`
 - **CLI-Based Transactions**: IOTA CLI for PTB construction and submission
-- **SDK Type Definitions**: iota-sdk v1.13.1 for Rust type safety (upgraded Dec 18 2025)
-- **Move Framework**: IOTA framework v1.11.0 (contracts backward compatible with Protocol 17)
+- **SDK Type Definitions**: iota-sdk v1.17.2 for Rust type safety (upgraded Dec 18 2025)
+- **Move Framework**: IOTA framework v1.17.2 (contracts backward compatible with Protocol 20)
 - **Simplified Stack**: Direct mainnet access, no L2 Wasp complexity
 - **Production Ready**: Operational with OAuth auto-provisioning, QR code attestations, on-chain attestation submission
 
@@ -32,11 +32,11 @@ For understanding how IOTA integration fits within the wot.id architecture:
 
 **Note:** Production wot.id uses the public mainnet endpoint `https://api.mainnet.iota.cafe`. Local node setup is optional for development testing.
 
-The IOTA node can run as a Docker container. Current mainnet is **Protocol 17**.
+The IOTA node can run as a Docker container. Current mainnet is **Protocol 20**.
 
 ## 2. IOTA Mainnet Node Setup
 
-The IOTA node runs as a Docker container using the official `iotaledger/iota-node:mainnet` image with Protocol 17 support.
+The IOTA node runs as a Docker container using the official `iotaledger/iota-node:mainnet` image with Protocol 20 support.
 
 ### 2.1. Setup and Configuration
 
@@ -77,8 +77,8 @@ Once running, the IOTA node exposes the following services on `localhost`:
 
 **Protocol Version**: 17 (Current mainnet)
 **Network**: IOTA Mainnet
-**CLI Integration**: Backend uses `iota` CLI for transaction submission (with iota-sdk v1.13.1 types)
-**Framework Version**: Move contracts v1.11.0 (backward compatible with Protocol 17)
+**CLI Integration**: Backend uses `iota` CLI for transaction submission (with iota-sdk v1.17.2 types)
+**Framework Version**: Move contracts v1.17.2 (backward compatible with Protocol 20)
 
 ---
 
@@ -134,8 +134,8 @@ iota client ptb \
   --json
 ```
 
-**Current Package IDs (Protocol 17 Mainnet, December 29, 2025 v6 deployment)**:
-- **Identity Registry Package**: `0xf8ddc1060e855f09e30e62e74b4355048b2c50c582b68cceaf6f84366cfe8eee`
+**Current Package IDs (Protocol 20 Mainnet, January 9, 2026 v7 deployment with FileVault)**:
+- **Identity Registry Package**: `0xa389f9b55c811064e53bf1ee84900cafdcbbe05a3cf37bc7086a399ca5f2a8cb`
 - **Registry Shared Object**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92`
 
 **Contract Name**: `wot_identity_registry` (not `identity_registry`)
@@ -152,13 +152,12 @@ graph TD
         Frontend[Frontend<br/>Next.js on Vercel]
 
         subgraph "Backend Services"
-            Backend[Backend API<br/>Port 8080]
-            Identity[Identity Service<br/>Port 8081]
+            Backend[Backend API<br/>Port 10000<br/>Integrated DID Generation]
         end
 
         subgraph "IOTA Integration"
             IOTA_CLI[IOTA CLI<br/>PTB Construction]
-            Mainnet[IOTA Mainnet<br/>Protocol 17]
+            Mainnet[IOTA Mainnet<br/>Protocol 20]
         end
     end
 
@@ -170,12 +169,9 @@ graph TD
     Backend -- "CLI Commands" --> IOTA_CLI
     IOTA_CLI -- "JSON-RPC" --> Mainnet
     IOTA_CLI -. "Optional Dev" .-> IOTA_Local
-    Backend -- "DID Request" --> Identity
-    Identity -- "Ed25519+BLAKE3 DID" --> Backend
 
     style Mainnet fill:#cde4ff
     style Backend fill:#ffe4cd
-    style Identity fill:#d4ffd1
     style IOTA_CLI fill:#fcf5c7
     style IOTA_Local fill:#e8e8e8
 ```
@@ -212,7 +208,7 @@ The wot.id backend uses a hybrid approach for IOTA mainnet transactions:
 
 **Architecture**:
 - **CLI for Transactions**: IOTA CLI constructs and submits PTBs to mainnet
-- **SDK for Types**: iota-sdk v1.13.1 provides Rust type definitions (ObjectID, IotaAddress, etc.)
+- **SDK for Types**: iota-sdk v1.17.2 provides Rust type definitions (ObjectID, IotaAddress, etc.)
 - **No SDK Transaction Builder**: Avoids complex SDK APIs
 
 **Benefits**:
@@ -259,7 +255,6 @@ docker logs iota-fullnode-docker-setup-fullnode-1 -f
 
 **Backend Service Logs**:
 - **Backend API**: Console output from `cargo run` in `/backend/`
-- **Identity Service**: Console output from `cargo run` in `/identity-service/`
 
 ### 5.6. Resetting the Node
 
@@ -283,23 +278,22 @@ docker compose up -d
 
 ## 6. Current Deployment Status
 
-### 6.1. ✅ Production Environment (December 2025)
+### 6.1. ✅ Production Environment (March 2026)
 
-**Current Status**: IOTA mainnet Protocol 17 **fully operational** via public endpoint.
+**Current Status**: IOTA mainnet Protocol 20 **fully operational** via public endpoint.
 
 **IOTA Mainnet**:
-- ✅ **Protocol**: Version 17 (current mainnet)
+- ✅ **Protocol**: Version 20 (current mainnet, upgraded Feb 25, 2026)
 - ✅ **Network**: IOTA mainnet via `https://api.mainnet.iota.cafe`
 - ✅ **Production URLs**:
   - Frontend: https://wot.id (Vercel)
   - Backend: https://wot-id-backend.onrender.com
-  - Identity Service: https://wot-id.onrender.com
 
 **CLI + SDK Hybrid Integration**:
 - ✅ **IOTA CLI**: Installed for PTB construction
-- ✅ **iota-sdk v1.13.1**: Type definitions for Rust code
+- ✅ **iota-sdk v1.17.2**: Type definitions for Rust code
 - ✅ **PTB Support**: Full Programmable Transaction Block functionality
-- ✅ **Move Contracts**: Deployed to mainnet (backward compatible with Protocol 17)
+- ✅ **Move Contracts**: Deployed to mainnet (backward compatible with Protocol 20)
 
 **Backend Integration Status**:
 - ✅ **Backend API**: Hybrid CLI + SDK types approach
@@ -316,7 +310,7 @@ docker compose up -d
 **Sync Performance**:
 - Initial sync: ~2-4 hours (depending on network conditions)
 - Startup time: ~30 seconds for full node readiness
-- Current uptime: 100% operational on Protocol 17
+- Current uptime: 100% operational on Protocol 20
 
 **Resource Usage**:
 - IOTA Node container: ~2GB RAM, ~50GB storage
