@@ -208,7 +208,7 @@ wot.id is built on a foundation of open standards and extends them with trust ne
 ```mermaid
 graph TD
     W3C[📜 W3C DID Core v1.0<br/>W3C Standard Specification<br/>Technology-agnostic]
-    IDENTITY[🔧 wot.id Identity Service<br/>W3C Compliant Implementation<br/>Ed25519 + BLAKE3 Cryptographic DIDs<br/>✅ Production Deployed]
+    IDENTITY[🔧 wot.id Backend API<br/>W3C Compliant DID Generation<br/>Ed25519 + BLAKE3 Cryptographic DIDs<br/>✅ Production Deployed]
     WOT_APP[🌐 wot.id Application<br/>✅ Operational<br/>Trust Network + VALUES]
     ONCHAIN[📦 On-Chain Storage<br/>✅ DID + Profile + Registry<br/>IOTA Move Contracts]
 
@@ -223,9 +223,9 @@ graph TD
     style ONCHAIN fill:#16a085,color:#fff
 ```
 
-**Current Implementation (Production - January 2026):**
+**Current Implementation (Production - March 2026):**
 
-🟢 **wot.id Identity Service** (W3C-Compliant DIDs)
+🟢 **wot.id Backend API** (Integrated W3C-Compliant DIDs)
    - Generates cryptographically secure DIDs derived from Ed25519 public keys
    - Format: `did:iota:mainnet:<blake3-hash-of-pubkey>`
    - W3C DID Core 1.0 format compliant (syntax, document structure, verification methods)
@@ -234,7 +234,7 @@ graph TD
 
 **DID Generation:**
 ```rust
-// Identity service generates Ed25519 keypair
+// Backend API generates Ed25519 keypair
 let signing_key = SigningKey::from_bytes(&rand::random::<[u8; 32]>());
 let verifying_key = signing_key.verifying_key();
 
@@ -335,7 +335,7 @@ Properties:
 2. Frontend calls Backend API with email
 3. Backend queries identity_registry.move: secondary identifier → DID lookup
 4. If DID found: Load existing profile
-5. If DID not found: Create new DID via Identity Service, store identifier→DID mapping
+5. If DID not found: Generate DID inline (Ed25519 + BLAKE3), store identifier→DID mapping
 6. Display ME page with data VALUES from on-chain profile
 ```
 
@@ -611,7 +611,7 @@ These 10 technical principles define the implementation approach for `wot.id`, r
 6.  **Atomic Data Structure & Modularity**: Implements atomic and independently manageable data fragments for identity and credentials. Identity is not a monolithic profile but is composed of secure, atomic data fragments shared selectively.
 7.  **Crypto-Agility & Future-Proof Security**: All sensitive identity data is protected by **quantum-resistant encryption** using hybrid X25519 + ML-KEM-768 (NIST FIPS 203). The encryption infrastructure supports all data types: identity claims (name, DOB, address), health data, documents, and P2P messages. Users own their encryption keys via BIP-39 mnemonic backup—wot.id servers never see plaintext sensitive data. (See: `docs/02_System_Architecture.md` section 10.2)
 8.  **Device-to-Device Trust & P2P Flows**: Establishes and verifies identity through direct, peer-to-peer attestations and device-to-device flows.
-9.  **IOTA-Native and W3C-Compliant**: All on-chain logic is built using IOTA-native technologies, primarily **Move smart contracts** deployed directly on IOTA mainnet (Protocol 17). The system uses a custom **Identity Registry** pattern (`wot_identity_registry.move`) for decentralized DID-to-Profile lookups. Identity Service generates W3C DID Core 1.0 compliant DIDs using Ed25519 + BLAKE3 cryptographic derivation. Backend executes transactions via IOTA CLI with iota-sdk v1.13.1 for type definitions. (See: [Move Concepts | IOTA Documentation](https://docs.iota.org/developer/iota-101/move-overview/))
+9.  **IOTA-Native and W3C-Compliant**: All on-chain logic is built using IOTA-native technologies, primarily **Move smart contracts** deployed directly on IOTA mainnet (Protocol 20). The system uses a custom **Identity Registry** pattern (`wot_identity_registry.move`) for decentralized DID-to-Profile lookups. Backend API generates W3C DID Core 1.0 compliant DIDs using Ed25519 + BLAKE3 cryptographic derivation and executes transactions via IOTA CLI with iota-sdk v1.17.2 for type definitions. (See: [Move Concepts | IOTA Documentation](https://docs.iota.org/developer/iota-101/move-overview/))
 10. **Universal TrustLevel & Selective Disclosure**: A universal TrustLevel (-100,000 to +100,000) is enforced everywhere, where negative values indicate distrust, zero represents neutrality, and positive values indicate trust. All flows reference and enforce selective disclosure and user sovereignty.
 
 These principles must be referenced and enforced when designing and implementing any aspect of `wot.id`.
@@ -681,16 +681,16 @@ Key areas of alignment include:
 - ✅ QR code attestations (cross-device flow operational)
 - ✅ On-chain attestation submission via `wot_trust.move`
 - ✅ Post-quantum encryption (X25519 + ML-KEM-768)
-- ✅ Backend microservices architecture (Rust/Axum)
-- ✅ IOTA mainnet deployment (Protocol 17, iota-sdk v1.13.1)
+- ✅ Single Backend API (Rust/Axum, Identity Service retired March 2026)
+- ✅ IOTA mainnet deployment (Protocol 20, iota-sdk v1.17.2)
 
 **Architecture:**
 ```
-User → OAuth Login → Identity Service
+User → OAuth Login → Backend API
   ↓
-  Generates: did:iota:mainnet:<blake3-hash-of-pubkey>
+  Generates: did:iota:mainnet:<blake3-hash-of-pubkey> (Ed25519 + BLAKE3)
   ↓
-  Backend → On-chain Registry → Profile Creation
+  On-chain Registry → Profile Creation
   ↓
   Trust Network Features → Attestations → Trust Scores
 ```
@@ -698,7 +698,6 @@ User → OAuth Login → Identity Service
 **Production URLs:**
 - Frontend: https://wot.id
 - Backend: https://wot-id-backend.onrender.com
-- Identity Service: https://wot-id.onrender.com
 
 **Key Milestones Achieved:**
 - ✅ **Post-Quantum Cryptography Stack** (Dec 30, 2025)
