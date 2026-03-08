@@ -8,8 +8,8 @@
 - **Registry Object ID**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (shared object)
 - **UpgradeCap**: `0x36f57406ec2957b4d2d8309a417122e614469b65ddcfc299d8501bfc1472d7ea` (secured in cold wallet)
 - **Deployment**: January 9, 2026 v7 (on-chain version 3) - Upgraded via UpgradeCap with FileVault module
-- **Protocol**: IOTA mainnet Protocol 17
-- **Framework**: Move contracts v1.11.0 (edition 2024)
+- **Protocol**: IOTA mainnet Protocol 20
+- **Framework**: Move contracts v1.17.2 (edition 2024)
 - **Gas Station**: Backend sponsors transactions with 24-hour rate limiting
 
 ### **🎯 Deployed Modules (Operational January 2026)**
@@ -18,7 +18,7 @@
 - **`wot_trust`**: ✅ **On-chain attestation system (Dec 12, 2025)** - Trust scoring with u64 trust_level, context_uri, and status lifecycle
 - **`file_vault`**: ✅ **NEW (Jan 9, 2026)** - DID-portable encrypted file storage with consent-based sharing
 - **`mailbox`**: Encrypted messaging between DIDs
-- **Integration**: Backend uses hybrid CLI + SDK types approach (CLI for transactions, iota-sdk v1.13.1 for types)
+- **Integration**: Backend uses hybrid CLI + SDK types approach (CLI for transactions, iota-sdk v1.17.2 for types)
 - **Test Coverage**: ✅ 49 tests passing (October 2025)
 
 ### **🚀 Recent Milestones (January 2026)**
@@ -44,7 +44,7 @@
 - ✅ **All tests passing**: Complete test suite validated (49/49 tests)
 
 ### 🚀 Production Operational (November 2025)
-- **Hybrid CLI + SDK Types**: CLI for PTB submission, iota-sdk v1.13.1 for type definitions
+- **Hybrid CLI + SDK Types**: CLI for PTB submission, iota-sdk v1.17.2 for type definitions
 - **Event Indexing**: Backend queries `ProfileRegistered` events for lookups
 - **Gas Costs**: ~0.0076 IOTA per profile creation + registration
 - **Security**: UpgradeCap secured in cold wallet `0xffc7f6eb21333ea9fb27ea707bdd5c812292b2408fcb157ad4086c5b86d1db1e`
@@ -1092,7 +1092,7 @@ The `wot.id` Move smart contracts have been successfully deployed to the IOTA ne
 - **Registry Object**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (shared, preserved from v5)
 - **UpgradeCap**: `0x36f57406ec2957b4d2d8309a417122e614469b65ddcfc299d8501bfc1472d7ea` (secured in cold wallet)
 - **On-Chain Version**: 3 (upgraded via UpgradeCap)
-- **Status**: Live and operational on IOTA mainnet Protocol 17
+- **Status**: Live and operational on IOTA mainnet Protocol 20
 - **Changes**: FileVault module added, Move 2024 edition compatibility
 
 **Successful Profile Creation Evidence**:
@@ -1112,11 +1112,11 @@ RATE_LIMIT_HOURS=24
 
 ### 4.2. Executing Functions (`moveCall` in PTB)
 
-All contract functions are executed by including a `moveCall` command within a Programmable Transaction Block (PTB). The `Backend API` or `Identity Service` is responsible for constructing and submitting these PTBs to the IOTA node.
+All contract functions are executed by including a `moveCall` command within a Programmable Transaction Block (PTB). The `Backend API` is responsible for constructing and submitting these PTBs to the IOTA node.
 
 ```mermaid
 sequenceDiagram
-    participant Service as Backend/Identity Service
+    participant Service as Backend API
     participant Node as IOTA Node
     participant VM as Move VM
 
@@ -1169,8 +1169,8 @@ iota client object PROFILE_ID --json
 
 ### Identity Creation Flow
 ```
-User → Backend API → Identity Service (create W3C DID)
-    → Backend API → IOTA CLI (PTB construction)
+User → Backend API (generate Ed25519+BLAKE3 DID)
+    → IOTA CLI (PTB construction)
     → IOTA Mainnet → wot_identity::create_identity
     → Event Emission → IdentityCreated
 ```
