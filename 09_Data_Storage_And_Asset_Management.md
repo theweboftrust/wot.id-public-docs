@@ -1,7 +1,7 @@
 # 09: Data Storage and Asset Management
 
-> **Current Status: 100% On-Chain Data VALUES (December 2025)**
-> This document outlines wot.id's data storage architecture. **Currently Operational**: W3C DIDs, email→DID mappings, profile creation, on-chain attestations via wot_trust.move, and Health Section bulk CSV import (Dec 2025). **Future Development**: Additional atomic data types are planned. The foundational identity registry and attestation system are live on IOTA mainnet Protocol 17 with iota-sdk v1.13.1 (Move contracts v1.11.0 are backward compatible).
+> **Current Status: 100% On-Chain Data VALUES (May 2026)**
+> This document outlines wot.id's data storage architecture. **Currently Operational**: W3C DIDs, email→DID mappings, profile creation, on-chain attestations via the `wot_trust` module of the unified `wot_id` package, Health Section bulk CSV import (Dec 2025), unified atom storage for all 15 atom types via a single `store_atom()` entry function (v8 deployed March 11, 2026), and encrypted single-string identity claims including `place_of_birth` and `current_residence` (allowlist + response shape fixed May 6, 2026). The identity registry and attestation system are live on IOTA mainnet Protocol 24 (Starfish consensus) with iota-sdk v1.21.1.
 
 ## 1. Introduction
 
@@ -9,7 +9,7 @@ This document outlines the wot.id project's comprehensive strategy for data stor
 
 **Core Architecture Principle: 100% On-Chain Data VALUES**
 
-All identity data VALUES—the actual information that defines a person or entity—are stored 100% on-chain on the IOTA Tangle using Move smart contracts. Supporting document FILES (PDFs, images) may optionally be stored off-chain with cryptographic verification, but the data VALUES themselves are always on-chain.
+All identity data VALUES—the actual information that defines a person or entity—are stored 100% on-chain on the IOTA distributed ledger using Move smart contracts. (The Mysticeti BFT consensus structure over a DAG is the *ordering* mechanism; the *storage* itself is the Move-VM object ledger — see `docs/2026_Code_Work/26-04-23_IOTA_Overview` §2.2 for the precise definition.) Supporting document FILES (PDFs, images) may optionally be stored off-chain with cryptographic verification, but the data VALUES themselves are always on the distributed ledger.
 
 ### 1.1. Storage Architecture Overview
 
@@ -86,15 +86,15 @@ graph TB
 
 The management of data and digital assets within wot.id is guided by several foundational technical design principles:
 
-*   **100% On-Chain Data VALUES Storage**: All identity data VALUES are stored on the IOTA Tangle as immutable, auditable records. This includes W3C-compliant DIDs, identity attributes, trust scores, claims, and attestations. Supporting document FILES (PDFs, images) may optionally be stored off-chain with cryptographic verification via on-chain SHA-256 hashes.
+*   **100% On-Chain Data VALUES Storage**: All identity data VALUES are stored on the IOTA distributed ledger as immutable, auditable records. This includes W3C-compliant DIDs, identity attributes, trust scores, claims, and attestations. Supporting document FILES (PDFs, images) may optionally be stored off-chain with cryptographic verification via on-chain SHA-256 hashes.
 *   **Atomic Data Structure**: Data, including identity attributes and asset components, is structured as atomic, independently manageable fragments (VALUES). Each atomic VALUE can have its own trust score and attestations. This enhances modularity, auditability, user control, and allows for selective disclosure and recomposition as needed. (As per Technical Design Principle #6, `docs/01_Project_Overview_And_Principles.md`)
 *   **Trust Score per VALUE**: Each atomic data VALUE has its own trust score (-100 to +100) based on attestations from trusted entities. For example, a lab result VALUE attested by a certified lab receives a high trust score (+100), while a claim attested by fake accounts receives a low trust score (-100). This is wot.id's core web of trust functionality.
-*   **Security and Privacy by Design**: Security and privacy are integral to the storage architecture. This includes robust encryption, access control mechanisms, and data minimization practices. (As per Technical Design Principle #5, `docs/01_Project_Overview_And_Principles.md`)
+*   **Security and Privacy by Design**: Security and privacy are integral to the storage architecture. This includes PQC encryption (X25519 + ML-KEM-768), a **unified 0-3 privacy scale** (Public → Trusted Contacts → Specific Entities → Private) enforced per claim and per atom, time-limited access grants, and per-field access control. (As per Technical Design Principle #5, `docs/01_Project_Overview_And_Principles.md`. See `docs/2026_Code_Work/26-03-09_Privacy_Level.md` for complete privacy architecture.)
 *   **User Control and Sovereignty**: Users maintain absolute control and ownership over their data and digital assets, deciding what is stored, how it is shared, and with whom.
 
 ## 3. On-Chain Storage (IOTA Mainnet with Move)
 
-**Current Implementation Status (January 2026)**:
+**Current Implementation Status (March 2026)**:
 
 **✅ OPERATIONAL:**
 - W3C DID Core 1.0 compliant identifiers (Ed25519 + BLAKE3)
@@ -131,8 +131,15 @@ The management of data and digital assets within wot.id is guided by several fou
   - Batch RPC for attestations (20-50 sec → ~2 sec)
   - Paginated event queries (up to 2000 attestations)
 
+**✅ RECENTLY COMPLETED (March 2026):**
+- Unified atom storage: single `EncryptedAtom` struct + `store_atom()` for all 15 atom types (v8)
+- All atom types now storable: document, asset, contact, education, work, biometric, etc.
+- Atom access control: `has_atom_access()` with privacy levels 0-3
+- Atom deletion: `delete_atom()` for full lifecycle management
+- Per-type on-chain validation (contract is schema authority for multi-client decentralization)
+
 **⏳ PLANNED (Not Yet Implemented):**
-- Additional atomic data types (DocumentAtom, AssetAtom, etc.)
+- Backend PTB migration to v8 `store_atom()` (currently calls deprecated `store_health_atom_encrypted`)
 - Document verification with SHA-256 hashes
 - IPFS integration for off-chain files
 - IOTA Kiosk for asset management
@@ -244,90 +251,70 @@ FETCH PATH:
 
 ### 3.3. Atomic Data Structure Architecture
 
-wot.id implements a modular, atomic data structure where identity is composed of independent, manageable fragments:
+wot.id implements a modular, atomic data structure where identity is composed of independent, manageable fragments. As of v8 (March 2026), all atom types use a single `EncryptedAtom` struct with the `atom_type` field determining type-specific validation:
 
 ```mermaid
 graph TD
     PROFILE[👤 Identity Profile Object<br/>Core Container on IOTA]
-    
-    subgraph "Personal Data Atoms"
-        CONTACT[📞 ContactAtom<br/>Email, Phone, Address]
-        BIO[🧬 BiometricAtom<br/>Fingerprints, Face ID]
-        EMO[❤️ EmotionalAtom<br/>Wellbeing, Mental Health]
+
+    STRUCT[🔐 EncryptedAtom<br/>Universal struct for all types<br/>atom_type determines validation]
+
+    subgraph "15 Atom Types (all use EncryptedAtom)"
+        HEALTH[⚕️ Health (type=1)<br/>Lab Results, Vitals]
+        DOC[📄 Document (type=2)<br/>Passports, IDs]
+        ASSET[💎 Asset (type=3)<br/>Ownership Records]
+        CONTACT[📞 Contact (type=4)<br/>Relationships]
+        ACCOUNT[🏦 Account (type=5)<br/>Financial Accounts]
+        MORE[... types 6-15<br/>Education, Work, Biometric,<br/>Behavioral, Creative, Legal,<br/>Travel, Consumption,<br/>Spiritual, Emotional]
     end
-    
-    subgraph "Professional Data Atoms"
-        EDU[🎓 EducationAtom<br/>Degrees, Certifications]
-        WORK[💼 WorkAtom<br/>Employment History]
-        SKILL[🛠️ SkillAtom<br/>Competencies, Expertise]
-    end
-    
-    subgraph "Health Data Atoms"
-        HEALTH[⚕️ HealthAtom<br/>Lab Results, Vitals]
-        MED[💊 MedicationAtom<br/>Prescriptions, Allergies]
-        GENETIC[🧬 GeneticAtom<br/>DNA Data, Ancestry]
-    end
-    
-    subgraph "Asset Data Atoms"
-        DOC[📄 DocumentAtom<br/>Passports, IDs]
-        ASSET[💎 AssetAtom<br/>Ownership Records]
-        ACCOUNT[🏦 AccountAtom<br/>Financial Accounts]
-    end
-    
-    subgraph "Trust Data Atoms"
-        ATTEST[✅ AttestationAtom<br/>Verifications, Signatures]
-        REP[⭐ ReputationAtom<br/>Trust Scores, Ratings]
-        CERT[🏆 CertificationAtom<br/>Professional Licenses]
-    end
-    
-    PROFILE --> CONTACT
-    PROFILE --> BIO
-    PROFILE --> EMO
-    PROFILE --> EDU
-    PROFILE --> WORK
-    PROFILE --> SKILL
-    PROFILE --> HEALTH
-    PROFILE --> MED
-    PROFILE --> GENETIC
-    PROFILE --> DOC
-    PROFILE --> ASSET
-    PROFILE --> ACCOUNT
-    PROFILE --> ATTEST
-    PROFILE --> REP
-    PROFILE --> CERT
-    
+
+    PROFILE --> STRUCT
+    STRUCT --> HEALTH
+    STRUCT --> DOC
+    STRUCT --> ASSET
+    STRUCT --> CONTACT
+    STRUCT --> ACCOUNT
+    STRUCT --> MORE
+
     style PROFILE fill:#2ecc71,color:#fff
-    style CONTACT fill:#3498db,color:#fff
-    style EDU fill:#9b59b6,color:#fff
-    style HEALTH fill:#e74c3c,color:#fff
+    style STRUCT fill:#e74c3c,color:#fff
+    style HEALTH fill:#3498db,color:#fff
     style DOC fill:#f39c12
-    style ATTEST fill:#16a085,color:#fff
+    style CONTACT fill:#9b59b6,color:#fff
 ```
+
+**On-chain functions (v8)**:
+- `store_atom(profile, atom_type, ...)` — store any atom type with per-type validation
+- `delete_atom(profile, atom_key, ...)` — remove atom from profile
+- `has_atom_access(profile, atom_key, privacy_level, viewer, clock)` — check access
 
 **Benefits of Atomic Structure:**
 - ✅ **Selective Disclosure**: Share only specific atoms (e.g., education, not health)
-- ✅ **Granular Privacy**: Field-level access control for each atom type
+- ✅ **Granular Privacy**: Privacy level 0-3 per atom, enforced by `has_atom_access()`
 - ✅ **Independent Updates**: Modify one atom without affecting others
 - ✅ **Modular Verification**: Separate attestations for different data types
-- ✅ **Scalable Storage**: Add new atom types without schema changes
+- ✅ **Scalable Storage**: New atom types use same `EncryptedAtom` struct — only validation rules need contract upgrade
 - ✅ **Context-Specific Sharing**: Different atoms for different use cases
-- ✅ **Trust Score per VALUE**: Each atomic VALUE within an atom has its own trust score
+- ✅ **Trust Score per VALUE**: Each atomic VALUE has trust derived from attestations
+- ✅ **Full Lifecycle**: Store, access-control, and delete via unified functions (v8)
+- ✅ **Schema Authority**: On-chain per-type validation ensures data integrity in multi-client world
 
-**Example: HealthAtom with Trust Scores**
+**Example: Health Atom stored via v8 `store_atom()`**
 ```
-HealthAtom {
-  ldl_cholesterol: {
-    value: "31 mg/dl",
-    trust_score: +100.00,  // Attested by certified lab
-    attested_by: "did:iota:mainnet:certified_lab_xyz",
-    attested_at: "2023-11-09"
-  },
-  blood_type: {
-    value: "O+",
-    trust_score: +95.00,  // Attested by hospital + doctor
-    attested_by: ["did:iota:mainnet:hospital_abc", "did:iota:mainnet:doctor_123"]
-  }
+EncryptedAtom {
+  atom_type: 1,                    // TYPE_HEALTH
+  label: "lipid",                  // category
+  sublabel: Some("ldl"),           // data_type (required for health)
+  primary_enc: EncryptedField{...}, // Encrypted value "31 mg/dl"
+  secondary_enc: Some(EncryptedField{...}), // Encrypted provider
+  meta_string1: Some("mg/dl"),     // unit
+  meta_string2: Some("0-100"),     // reference_range
+  meta_u8: Some(0),               // record_type
+  privacy_level: 3,               // PRIVATE
+  timestamp: 1726234567,
+  verified: false                  // Until attested
 }
+// Key: "atom:1:ldl:1726234567"
 ```
 
 ## 4. Optional Off-Chain Storage: Supporting Document FILES Only
@@ -359,15 +346,22 @@ All identity data VALUES are 100% on-chain. This section describes an optional m
 
 **On-Chain Anchor** (stored in identity profile's dynamic fields):
 ```move
-// Document reference stored on-chain
-public struct DocumentAtom has store, drop {
-    doc_type: String,           // "passport", "degree", "medical_record"
-    doc_hash: String,           // SHA-256 hash of document content
-    issuer: String,             // DID of document issuer
-    issue_date: u64,            // Timestamp
-    expiry_date: Option<u64>,   // Optional expiration
-    metadata: String,           // IPFS CID or storage location
+// v8: Document atoms use universal EncryptedAtom with atom_type=2
+// Stored via: store_atom(profile, atom_type=2, label="passport", ...)
+// Validation: data_hash required + non-empty; numeric2 >= numeric1 (expires >= issued)
+EncryptedAtom {
+    atom_type: 2,                           // TYPE_DOCUMENT
+    label: "passport",                      // doc_type
+    primary_enc: EncryptedField{...},       // Encrypted issuer
+    secondary_enc: Some(EncryptedField{...}), // Encrypted doc_number
+    data_hash: Some(sha256_bytes),          // SHA-256 hash (required for documents)
+    metadata_hash: Some(metadata_bytes),    // Additional metadata hash
+    numeric1: Some(1726234567),             // issued_at timestamp
+    numeric2: Some(1852234567),             // expires_at timestamp (must be >= issued_at)
+    privacy_level: 3,                       // PRIVATE
+    ...
 }
+// Key: "atom:2:passport:1726234567"
 ```
 
 **Off-Chain Storage**:
@@ -528,7 +522,7 @@ The foundation for asset management within `wot.id` relies on:
 
 *   **IOTA Mainnet Move Smart Contracts**: All asset logic, including definition, ownership, and transfer rules, is implemented using Move smart contracts on IOTA mainnet, benefiting from Move's safety and expressiveness.
 *   **Programmable Transaction Blocks (PTBs)**: All on-chain asset operations (creation, transfer, updates, burning) are executed atomically within PTBs, ensuring consistency and preventing partial state changes.
-*   **Decentralized Identifiers (DIDs)**: User DIDs (as detailed in `docs/04_Backend_And_Identity_Service.md` and `docs/05_Move_Smart_Contracts.md`) are central to asset ownership, providing a secure and self-sovereign anchor for controlling digital property.
+*   **Decentralized Identifiers (DIDs)**: User DIDs (as detailed in `docs/04_Backend.md` and `docs/05_Move_Smart_Contracts.md`) are central to asset ownership, providing a secure and self-sovereign anchor for controlling digital property.
 *   **Verifiable Credentials (VCs)**: VCs can be used to attest to asset properties, provenance, or associated rights, enhancing trust and enabling complex interactions (see `docs/07_Trust_Architecture_And_Management.md`).
 
 ### 5.2. Fungible Assets (Tokens)
@@ -865,4 +859,3 @@ The atomic data structure principle has been proven with real-world health data:
 - ✅ **Trust Integration**: Medical attestation system ready for doctor DIDs
 
 **Data Storage Status**: ✅ **PRODUCTION VALIDATED** - Successfully managing world's first comprehensive health data sovereignty system on IOTA mainnet
-
