@@ -2,7 +2,9 @@
 
 ## 1. Introduction: Human Identity on the Web of Trust
 
-wot.id is an open peer-to-peer environment where any digitally connected actor – human, machine, service, or otherwise - can communicate, manage and exchange assets, and handle trust with instantaneous speed, maximum security, and minimal cost. Built upon IOTA's advanced distributed ledger technology, any datapoint is permanently available on a directed acyclic graph (the real cloud!), but can only be accessed and controlled by its owner. Any datapoint also has an inbuilt trust level ranging from -100 to +100 that enables participants to establish and manage complex and intricate trust relationships, where negative values indicate distrust, zero represents neutrality, and positive values indicate trust.
+wot.id is an open peer-to-peer environment where any digitally connected actor – human, machine, service, or otherwise - can communicate, manage and exchange assets, and handle trust with instantaneous speed, maximum security, and minimal cost. Built upon IOTA's advanced distributed ledger technology (DLT), any datapoint is permanently stored on the blockchain (the real cloud!), but can only be accessed and controlled by its owner. Any datapoint also has an inbuilt trust level ranging from -100 to +100 that enables participants to establish and manage complex and intricate trust relationships, where negative values indicate distrust, zero represents neutrality, and positive values indicate trust.
+
+> **Terminology note**: IOTA Rebased (May 2025+) stores data on a Move-VM object ledger — equivalent in role to "blockchain state" on chains like Ethereum, but with object-keyed rather than account-keyed storage. The Directed Acyclic Graph (DAG) in IOTA Rebased is the **consensus** structure (the Mysticeti BFT mempool among ~150 validators), not the storage shape. The original user-built Tangle, in which every wallet validated two prior transactions, was retired with Rebased. Across these docs we use **distributed ledger / DLT** as the umbrella term for the storage layer and refer to the DAG only when describing consensus. See `docs/2026_Code_Work/26-04-23_IOTA_Overview` for the full architecture briefing.
 
 ---
 
@@ -31,7 +33,7 @@ As quantum computers advance toward breaking today's encryption standards (RSA, 
 | **Encryption** | Classical (breakable by quantum) | Hybrid X25519 + ML-KEM-768 (NIST FIPS 203) |
 | **Key Storage** | Platform-controlled or HSM | User-owned via BIP-39 mnemonic |
 | **Trust Model** | Centralized issuers | Decentralized peer attestations |
-| **Data Storage** | Off-chain or siloed | 100% on-chain (IOTA Tangle) |
+| **Data Storage** | Off-chain or siloed | 100% on-chain (IOTA Rebased mainnet) |
 | **Server Knowledge** | Sees plaintext data | Zero-knowledge (client-side encryption) |
 
 #### The Quantum-Safe Architecture
@@ -49,7 +51,7 @@ As quantum computers advance toward breaking today's encryption standards (RSA, 
 │           │                                    │                        │
 │           ▼                                    ▼                        │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  ENCRYPTED ON IOTA TANGLE                                        │   │
+│  │  ENCRYPTED ON IOTA MAINNET                                       │   │
 │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐   │   │
 │  │  │  Name   │ │  DOB    │ │ Address │ │ Health  │ │  Docs   │   │   │
 │  │  │ ████████│ │█████████│ │█████████│ │█████████│ │█████████│   │   │
@@ -82,11 +84,11 @@ See `docs/02_System_Architecture.md` section 10.2 for technical implementation d
 
 #### The Fundamental Concept
 
-wot.id enables users to store **all digitalized aspects of their existence** as atomic data points on the IOTA Tangle. The primary driver is **data sovereignty**: users are not walled in or dependent on any company—including wot.id itself—to access their data.
+wot.id enables users to store **all digitalized aspects of their existence** as atomic data points on IOTA Rebased mainnet. The primary driver is **data sovereignty**: users are not walled in or dependent on any company—including wot.id itself—to access their data.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  ATOMIC DATA POINT (stored on IOTA Tangle)                      │
+│  ATOMIC DATA POINT (stored on IOTA mainnet)                     │
 │  ┌───────────────────────────────────────────────────────────┐ │
 │  │  value: "31 mg/dl"           ← The actual data            │ │
 │  │  trust_value: +85            ← How reliable/verified      │ │
@@ -109,7 +111,7 @@ wot.id enables users to store **all digitalized aspects of their existence** as 
    - Users own their data via their DID (Decentralized Identifier)
    - To access their data, users need ONLY their DID—not wot.id
    - wot.id is ONE interface to view/manage data, not the gatekeeper
-   - The IOTA Tangle is the permanent, decentralized storage layer
+   - IOTA Rebased mainnet is the permanent, decentralized storage layer
 
 3. **Trust = Reliability Measure**
    - Trust scores (-100 to +100) indicate how verified/reliable a data point is
@@ -245,6 +247,8 @@ let did = format!("did:iota:mainnet:{}", did_identifier);
 // Same key → Same DID (verifiable relationship)
 ```
 
+> **Note on legacy DIDs**: Accounts created before March 2026 use a UUID-style identifier (e.g. `did:iota:mainnet:dcc429e0-3eba-41c8-9635-b373614ecf92`) generated via `Uuid::new_v4()`. The byte length is identical (16 bytes / 32 hex chars), only the formatting differs. Both formats coexist in the on-chain registry and resolve correctly. New accounts use the plain-hex format described above.
+
 **W3C DID Document (Generated on request):**
 ```json
 {
@@ -269,7 +273,7 @@ let did = format!("did:iota:mainnet:{}", did_identifier);
 - ✅ DID → Profile mapping in `wot_identity_registry.move`
 - ✅ Secondary identifiers (email, phone) → DID mapping
 - ✅ All claims and trust data stored on-chain
-- ✅ Package: `0xf8ddc1060e855f09e30e62e74b4355048b2c50c582b68cceaf6f84366cfe8eee`
+- ✅ Package: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8 deployed March 11, 2026; the historical `0xf8ddc1060e…` was a pre-v8 standalone deploy and is no longer addressed by the backend)
 
 **W3C Compliance Summary:**
 
@@ -347,7 +351,7 @@ Properties:
 
 ### 1.4. Data Architecture: 100% On-Chain VALUES
 
-All identity data VALUES are stored 100% on-chain on the IOTA Tangle:
+All identity data VALUES are stored 100% on-chain on IOTA Rebased mainnet:
 
 **On-Chain (IOTA Move Contracts):**
 - ✅ **Primary Identifiers**: W3C DIDs
@@ -607,11 +611,11 @@ These 10 technical principles define the implementation approach for `wot.id`, r
 2.  **Decentralized Validator Network**: The network is secured by a committee of validators operating under a **Delegated Proof-of-Stake (dPoS)** system. Token holders delegate their stake to validators, ensuring that no central authority controls the network. (See: [Consensus on IOTA](https://docs.iota.org/about-iota/iota-architecture/consensus) and [IOTA Proof of Stake](https://docs.iota.org/about-iota/tokenomics/proof-of-stake)).
 3.  **Real-Time, Low-Cost Transactions**: IOTA's architecture is designed for high performance, enabling near real-time interactions. While core value transfers are feeless, smart contract execution requires gas, ensuring validators are compensated for computational effort. (See: [IOTA Gas Pricing](https://docs.iota.org/about-iota/tokenomics/gas-pricing) and [Gas in IOTA](https://docs.iota.org/about-iota/tokenomics/gas-in-iota))
 4.  **Hybrid Data Storage Strategy**: **Core identity data** (DIDs, profiles, claims, trust scores) lives **100% on-chain** via the identity registry and profile objects on IOTA mainnet. **Supporting documents** (PDFs, images, files) are stored off-chain (local/cloud/IPFS) with deterministic cryptographic links (SHA-256 hashes) anchored on-chain for verification.
-5.  **Security and Privacy by Design**: Security is anchored by proven cryptography for digital signatures and the robust ownership model of the **Move programming language**, which prevents many common smart contract vulnerabilities at the compiler level. (See: [Security on IOTA](https://docs.iota.org/about-iota/iota-architecture/iota-security) and [Move Concepts](https://docs.iota.org/developer/iota-101/move-overview/)).
+5.  **Security and Privacy by Design**: Security is anchored by proven cryptography for digital signatures and the robust ownership model of the **Move programming language**, which prevents many common smart contract vulnerabilities at the compiler level. Privacy is enforced via a **unified 0-3 privacy scale** (Public → Trusted Contacts → Specific Entities → Private) with three enforcement layers: per-data privacy levels on every claim and atom, per-field access control with time-limited grants, and profile-level privacy settings. (See: [Security on IOTA](https://docs.iota.org/about-iota/iota-architecture/iota-security), [Move Concepts](https://docs.iota.org/developer/iota-101/move-overview/), `docs/2026_Code_Work/26-03-09_Privacy_Level.md`).
 6.  **Atomic Data Structure & Modularity**: Implements atomic and independently manageable data fragments for identity and credentials. Identity is not a monolithic profile but is composed of secure, atomic data fragments shared selectively.
 7.  **Crypto-Agility & Future-Proof Security**: All sensitive identity data is protected by **quantum-resistant encryption** using hybrid X25519 + ML-KEM-768 (NIST FIPS 203). The encryption infrastructure supports all data types: identity claims (name, DOB, address), health data, documents, and P2P messages. Users own their encryption keys via BIP-39 mnemonic backup—wot.id servers never see plaintext sensitive data. (See: `docs/02_System_Architecture.md` section 10.2)
 8.  **Device-to-Device Trust & P2P Flows**: Establishes and verifies identity through direct, peer-to-peer attestations and device-to-device flows.
-9.  **IOTA-Native and W3C-Compliant**: All on-chain logic is built using IOTA-native technologies, primarily **Move smart contracts** deployed directly on IOTA mainnet (Protocol 20). The system uses a custom **Identity Registry** pattern (`wot_identity_registry.move`) for decentralized DID-to-Profile lookups. Backend API generates W3C DID Core 1.0 compliant DIDs using Ed25519 + BLAKE3 cryptographic derivation and executes transactions via IOTA CLI with iota-sdk v1.17.2 for type definitions. (See: [Move Concepts | IOTA Documentation](https://docs.iota.org/developer/iota-101/move-overview/))
+9.  **IOTA-Native and W3C-Compliant**: All on-chain logic is built using IOTA-native technologies, primarily **Move smart contracts** deployed directly on IOTA mainnet (Protocol 24, Starfish consensus). The system uses a custom **Identity Registry** pattern (`wot_identity_registry.move`) for decentralized DID-to-Profile lookups. Backend API generates W3C DID Core 1.0 compliant DIDs using Ed25519 + BLAKE3 cryptographic derivation and executes transactions via IOTA CLI with iota-sdk v1.21.1 for type definitions. (See: [Move Concepts | IOTA Documentation](https://docs.iota.org/developer/iota-101/move-overview/))
 10. **Universal TrustLevel & Selective Disclosure**: A universal TrustLevel (-100,000 to +100,000) is enforced everywhere, where negative values indicate distrust, zero represents neutrality, and positive values indicate trust. All flows reference and enforce selective disclosure and user sovereignty.
 
 These principles must be referenced and enforced when designing and implementing any aspect of `wot.id`.
@@ -668,7 +672,7 @@ Key areas of alignment include:
 
 ## 6. Implementation Status & Roadmap
 
-### 6.1. Current Status (January 2026)
+### 6.1. Current Status (March 2026)
 
 **Production: W3C-Compliant Decentralized Identity**
 
@@ -681,8 +685,9 @@ Key areas of alignment include:
 - ✅ QR code attestations (cross-device flow operational)
 - ✅ On-chain attestation submission via `wot_trust.move`
 - ✅ Post-quantum encryption (X25519 + ML-KEM-768)
+- ✅ Unified privacy architecture (0-3 scale, three-layer enforcement, March 2026)
 - ✅ Single Backend API (Rust/Axum, Identity Service retired March 2026)
-- ✅ IOTA mainnet deployment (Protocol 20, iota-sdk v1.17.2)
+- ✅ IOTA mainnet deployment (Protocol 24, iota-sdk v1.21.1, Starfish consensus)
 
 **Architecture:**
 ```
@@ -705,9 +710,11 @@ User → OAuth Login → Backend API
   - Production verified: [Transaction 5se44XYL...](https://explorer.rebased.iota.org/txblock/5se44XYLAHWHMjZT4VXaYCvyh1ueq7QjGV7u36ZCJD7)
   - Client-side encryption using pqc.js (Dashlane WebAssembly implementation)
   - 24-word BIP-39 mnemonic for key backup/recovery
-- ✅ **Smart Contract v6** (Dec 30, 2025)
-  - Package ID: `0xf8ddc1060e855f09e30e62e74b4355048b2c50c582b68cceaf6f84366cfe8eee`
+- ✅ **Smart Contract v7** (Jan 9, 2026) / **v8 architecture** (March 10, 2026)
+  - Package ID: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v7 deployed; v8 pending deployment)
   - Registry Object: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92`
+  - v8: Unified `EncryptedAtom` struct + single `store_atom()` function for all 15 atom types
+  - v8: Added `has_atom_access()` and `delete_atom()` — atoms now have full lifecycle management
 - ✅ **First On-Chain Attestation** (Nov 19, 2025)
   - Transaction: `4Uz9SxQv6gMyd21wwvZhZ4ZJ5KVsAAo4ia46SbHadWDf`
 - ✅ **OAuth Auto-Provisioning** (Nov 11, 2025)
@@ -754,3 +761,4 @@ This document is grounded in the official IOTA documentation. For further detail
     *   [Gas in IOTA](https://docs.iota.org/about-iota/tokenomics/gas-in-iota)
 *   **Security:**
     *   [Security on IOTA](https://docs.iota.org/about-iota/iota-architecture/iota-security)
+    *   
