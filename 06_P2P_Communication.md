@@ -1,15 +1,15 @@
 # 06: wot.id - Secure Peer-to-Peer (P2P) Communication
 
-## **Current Implementation Status (December 2025)**
+## **Current Implementation Status (May 2026)**
 
-> **Implementation Progress**: Basic P2P messaging is operational via WebSocket relay. End-to-end encryption and on-chain mailbox are planned for future phases.
+> **Implementation Progress**: Talk is alpha-quality but functional for two simultaneously-online peers. End-to-end PQC encryption is on by default, IndexedDB persistence has shipped, on-chain mailbox UI is wired, and WebRTC is implemented behind a feature flag. Multi-device sync, offline-by-default, and trust-aware verification are still open. See `docs/2026_Code_Work/26-04-28_Communication_Functionality_Status.md` and `docs/2026_Code_Work/26-04-28_Talk_Functionality_Work.md` for the current pillar-by-pillar status.
 
 ### **✅ Phase A: On-Chain Peer Discovery (December 3, 2025)**
-- ✅ Move contract: `service_endpoint` dynamic field added to TrustProfile
+- ✅ Move contract: `service_endpoint` dynamic field on `TrustProfile`
 - ✅ Backend: `POST/GET/DELETE /api/identity/service-endpoint` endpoints
 - ✅ Backend: libp2p integration with QUIC transport
 - ✅ Email→DID→profile lookup chain for peer discovery
-- ⚠️ Known bug: `lookup_profile_by_did` returns WotIdentity, not TrustProfile
+- ⚠️ Known bug: `lookup_profile_by_did` returns `WotIdentity`, not `TrustProfile`
 
 ### **✅ Phase B: Browser Support & WebSocket Relay (December 4, 2025)**
 - ✅ Backend: WebSocket relay endpoint `/ws/p2p/{peer_id}`
@@ -17,27 +17,31 @@
 - ✅ Frontend: P2P service layer with WebSocket transport
 - ✅ Frontend: `/talk` page with conversation list
 - ✅ Frontend: `/talk/[did]` chat page with real-time messaging
-- ✅ Frontend: Message persistence in localStorage
 - ✅ Browser detection for Safari/iOS compatibility
 
-### **⏳ Phase C: On-Chain Mailbox (Planned)**
-- Mailbox.move smart contract for offline delivery
-- Message deposit/claim flows
+### **✅ Phase C: Encryption-by-default + Mailbox UI + IndexedDB (April 28, 2026)**
+- ✅ Frontend: PQC encryption (X25519 + ML-KEM-768 + ChaCha20-Poly1305) is mandatory for all `text` messages — plaintext fallback removed; new typed exceptions surface "encryption locked" / "recipient has no published key" cases inline.
+- ✅ Frontend: on-chain mailbox UI hook wired (`MailboxAPI.depositMessage` on WS-send failure; `checkMailbox` polled on app start). One small follow-up on a counter API.
+- ✅ Storage upgrade: `localStorage` → IndexedDB via `idb` (5 MB cap removed); export/import flow available.
+- 🟡 WebRTC P2P: implemented behind `NEXT_PUBLIC_TALK_WEBRTC=1` (off by default; not browser-verified).
+- 🟡 Trust-aware messaging: Phase 1 (badge + VC styling) shipped; Phase 2 (verification, gating, dedicated backend endpoint) deferred.
 
 ### **⏳ Phase D: Production Hardening (Planned)**
-- End-to-end encryption (Signal Protocol or PQC)
-- Security audit, multi-device support, group messaging
+- Security audit, multi-device sync, group messaging
+- "Encryption on by default" UX (auto-unlock prompt at app start vs. current opt-in unlock)
 
 ### **Current Architecture (Working)**
 ```
 Browser A → WebSocket → Backend Relay → WebSocket → Browser B
            /ws/p2p/{peer_id}        /ws/p2p/{peer_id}
+                            ↓ on send-failure
+                  Mailbox PTB on IOTA mainnet (offline drop-box)
 ```
 
 ### **Key Limitations (Current Phase)**
-- **No E2E Encryption**: Messages pass through backend relay; transport-level encryption only (WSS)
-- **No Offline Delivery**: Recipient must be connected to receive
-- **localStorage**: 5MB limit, no cross-device sync (production should use IndexedDB)
+- **No multi-device sync**: IndexedDB is per-device; no native sync layer yet (export/import is the manual workaround).
+- **WebRTC unactivated**: All traffic still relays through the backend in normal operation.
+- **No group messaging / no VC verification**: Phase D items.
 
 ### **Files Implemented**
 | File | Description |
@@ -70,7 +74,7 @@ Therefore, `wot.id` implements its own P2P stack using industry-standard tools t
 **Architecture Context**:
 P2P communication in wot.id operates within the broader identity architecture:
 - **Identity Foundation**: See `docs/01_Project_Overview_And_Principles.md` sections 1.2-1.3
-- **DID-Based Authentication**: P2P connections authenticate using W3C DIDs (via identity.rs)
+- **DID-Based Authentication**: P2P connections authenticate using W3C DIDs (Ed25519 + BLAKE3, generated inline by the Backend API; the IOTA Identity SDK is not used)
 - **Trust Integration**: See `docs/07_Trust_Architecture_And_Management.md` for trust scores in messaging
 - **Data Architecture**: Messages may reference on-chain VALUES, see `docs/05_Move_Smart_Contracts.md` section 2.4
 
