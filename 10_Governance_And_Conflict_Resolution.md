@@ -31,7 +31,7 @@ The wot.id governance framework is guided by the core principles detailed in `do
 wot.id strives for a decentralized governance model that reflects its peer-to-peer architecture. Key aspects include:
 
 *   **Community-Driven**: The direction and evolution of the wot.id protocol and its core parameters are intended to be guided by its community of users and participants.
-*   **On-Chain and Off-Chain Components**: Governance may involve both on-chain mechanisms (e.g., voting on proposals via Move smart contracts on the IOTA L2, with the L2 state anchored to the L1 Tangle) and off-chain discussions and deliberations within the community.
+*   **On-Chain and Off-Chain Components**: Governance may involve both on-chain mechanisms (e.g., voting on proposals via Move smart contracts deployed directly on IOTA mainnet — IOTA Rebased runs Move on Layer 1; there is no L2/L1 split as in earlier IOTA architectures) and off-chain discussions and deliberations within the community.
 *   **Liquid Governance Elements**: The concept of "liquid governance" (as mentioned in (`docs/01_Project_Overview_And_Principles.md`) suggests a flexible and adaptive system where participants might delegate voting power or influence, allowing for dynamic representation and efficient decision-making. The specifics of liquid governance mechanisms are an area for ongoing development and refinement.
 *   **Focus on Protocol and Ecosystem Rules**: Governance primarily pertains to the rules of the wot.id protocol, standards, and the overall health of the ecosystem, rather than adjudicating individual user-to-user disputes outside of defined conflict resolution frameworks.
 
@@ -65,7 +65,9 @@ These on-chain objects provide a structured and verifiable foundation for key go
 ### 4.1. Phase 2: Implemented Governance Features
 
 **Current Implementation Status**:
-The wot.id governance system has successfully implemented Phase 2 features integrating with the **official IOTA Identity Move package (v1.6.0-beta.3)**:
+The Move-side data structures for the governance system are deployed in the unified `wot_id` package's `wot_trust` module (`0x14b1e852…`, v8 March 11, 2026). **The backend REST endpoints and frontend UI for proposals were deleted on 2026-03-07** because they were mock-only and returned fabricated data — see §6 note below and `docs/2026_Code_Work/26-03-07_Dead_Endpoints_Audit.md`. The on-chain structs remain available for any future implementation.
+
+**Implemented On-Chain Governance Structures** (Move side only; no API or UI today):
 
 **Implemented Governance Structures**:
 ```move
@@ -437,7 +439,7 @@ wot.id is committed to leveraging established and emerging standards to foster i
 
 *   **W3C Decentralized Identifiers (DIDs)**: Core to the wot.id identity model. Users are identified by DIDs, specifically `did:iota:<object-id>`, ensuring a decentralized and universally resolvable identifier system. This is consistently referenced across architecture documents, including `docs/01_Project_Overview_And_Principles.md` (Principle 3.2.9: IOTA-Native and W3C-Compliant).
 *   **W3C Verifiable Credentials (VCs)**: The structure and concepts of Verifiable Credentials are foundational for issuing, holding, and verifying claims within wot.id. The Move contract architecture (e.g., `Credential` and `Proof` objects as detailed in `docs/05_Move_Smart_Contracts.md`) reflects this alignment, enabling standardized, interoperable attestations of information.
-*   **IOTA Standards and Practices**: As an IOTA-native project, wot.id adheres to the standards, protocols, and best practices of the IOTA ecosystem, particularly concerning the use of the IOTA Tangle, IOTA Layer 2, Move smart contracts, and Programmable Transaction Blocks (PTBs).
+*   **IOTA Standards and Practices**: As an IOTA-native project, wot.id adheres to the standards, protocols, and best practices of the IOTA Rebased ecosystem (post-May 2025), particularly concerning the use of the IOTA distributed ledger, Move smart contracts on Layer 1, and Programmable Transaction Blocks (PTBs).
 *   **Post-Quantum Cryptography (PQC) Standards (NIST)**: wot.id aims for crypto-agility and future-proof security by preparing for and integrating NIST-standardized PQC algorithms (e.g., CRYSTALS-Dilithium, CRYSTALS-Kyber) for digital signatures and key exchange mechanisms, as detailed in `docs/06_P2P_Communication.md` and Technical Design Principle #7.
 
 ### 9.2. Interoperability Strategy
@@ -472,7 +474,7 @@ The development of wot.id is guided by a set of core principles and best practic
 *   **Thorough Documentation**: Maintaining up-to-date and comprehensive documentation for all aspects of the system, including architecture, APIs, and user guides.
 *   **Tech Stack Specific Practices**:
     *   **Move**: Adhering to idiomatic Move development patterns, leveraging Move's resource safety features, and aiming for formal verification of critical smart contracts where feasible (as detailed in `docs/05_Move_Smart_Contracts.md`).
-    *   **Rust**: Utilizing idiomatic Rust, focusing on safety through ownership and borrowing, robust error handling, and performance optimization where necessary (as detailed in `docs/04_Backend_And_Identity_Service.md`).
+    *   **Rust**: Utilizing idiomatic Rust, focusing on safety through ownership and borrowing, robust error handling, and performance optimization where necessary (as detailed in `docs/04_Backend.md`).
     *   **Next.js**: Employing component-based architecture, effective state management strategies, and leveraging Next.js features like Server-Side Rendering (SSR) or Static Site Generation (SSG) for optimal performance and UX (Ref: `docs/08_Frontend_And_User_Experience.md`).
 
 ## 11. Technical Design Principles Enforcement
