@@ -6,7 +6,7 @@ This document outlines the system architecture of the `wot.id` platform. It desc
 
 ### 1.1. Foundational Concept: wot.id as Interface, Not Owner
 
-**Critical Understanding**: wot.id is an **interface** to data stored on the IOTA Tangle—it is NOT the owner or gatekeeper of that data.
+**Critical Understanding**: wot.id is an **interface** to data stored on IOTA Rebased mainnet—it is NOT the owner or gatekeeper of that data.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -21,7 +21,7 @@ This document outlines the system architecture of the `wot.id` platform. It desc
 │                               │                                     │
 │                               ▼                                     │
 │   ┌─────────────────────────────────────────────────────────────┐ │
-│   │                    IOTA TANGLE                               │ │
+│   │                    IOTA MAINNET                              │ │
 │   │  ┌─────────────────────────────────────────────────────────┐│ │
 │   │  │  Atomic Data Points (owned by DID holder)               ││ │
 │   │  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       ││ │
@@ -38,7 +38,7 @@ This document outlines the system architecture of the `wot.id` platform. It desc
 ```
 
 **Key Implications**:
-- User data persists on IOTA Tangle regardless of wot.id's existence
+- User data persists on IOTA mainnet regardless of wot.id's existence
 - Any application with IOTA access can read user data (respecting privacy settings)
 - wot.id provides convenience features (OAuth login, gas sponsorship, ME page UI)
 - The DID is the user's permanent key to their data
@@ -56,7 +56,7 @@ Every piece of user data follows the same fundamental structure:
 │  attestations: Vec      // Who verified this data point        │
 │  created_at: u64        // When created                        │
 │  updated_at: u64        // Last modification                   │
-│  privacy_level: u8      // Who can see this                    │
+│  privacy_level: u8      // 0=Public, 1=Trusted, 2=Specific, 3=Private │
 └─────────────────────────────────────────────────────────────────┘
 
 Examples:
@@ -114,8 +114,8 @@ The Backend API is a single Rust service that handles all responsibilities:
 
 The `wot.id` platform consists of two primary components:
 
-*   **Backend API**: The central orchestrator, built with Rust and Axum. Constructs PTBs via IOTA CLI commands, uses iota-sdk v1.17.2 for type definitions. Generates W3C DID Core 1.0 compliant identifiers (Ed25519 + BLAKE3). Implements hybrid economic model: gas sponsorship for profile creation (24h rate limiting), personal wallets for user-funded transfers. Provides WebSocket relay for P2P messaging.
-*   **IOTA Mainnet**: Protocol 20 accessed via public API endpoint `https://api.mainnet.iota.cafe`. All identity data lives on-chain as Move objects.
+*   **Backend API**: The central orchestrator, built with Rust and Axum. Constructs PTBs via IOTA CLI commands, uses iota-sdk v1.21.1 for type definitions. Generates W3C DID Core 1.0 compliant identifiers (Ed25519 + BLAKE3). Implements hybrid economic model: gas sponsorship for profile creation (24h rate limiting), personal wallets for user-funded transfers. Provides WebSocket relay for P2P messaging.
+*   **IOTA Mainnet**: Protocol 24 accessed via public API endpoint `https://api.mainnet.iota.cafe`. All identity data lives on-chain as Move objects.
 
 ### 3.1. W3C DID Implementation
 
@@ -144,7 +144,7 @@ wot.id Application (extends with trust network)
 - Stores DID string in Move contracts (`wot_identity_registry.move`, `wot_identity.move`)
 - Stores secondary identifier→DID mappings (email → DID, phone → DID)
 - Stores atomic data VALUES with trust scores in profile objects
-- Executes transactions via IOTA CLI with iota-sdk v1.17.2 types
+- Executes transactions via IOTA CLI with iota-sdk v1.21.1 types
 - **Status:** ✅ Production deployed and operational
 
 **W3C Compliance:**
@@ -217,7 +217,7 @@ wot.id Application (extends with trust network)
 
 **100% On-Chain Data VALUES:**
 
-All identity data VALUES are stored on IOTA Tangle using Move smart contracts:
+All identity data VALUES are stored on IOTA Rebased mainnet using Move smart contracts:
 
 - ✅ **W3C DIDs**: `did:iota:mainnet:...` (primary identifiers)
 - ✅ **Secondary Identifier Mappings**: Generic (type, value) → DID registry in `identity_registry.move`
@@ -254,9 +254,9 @@ The `Backend API` uses a hybrid approach for IOTA blockchain interactions:
 
 **Architecture:**
 - **Transaction Execution:** IOTA CLI commands for PTB construction and submission
-- **Type Definitions:** iota-sdk v1.17.2 for Rust type safety (ObjectID, IotaAddress, TransactionData)
+- **Type Definitions:** iota-sdk v1.21.1 for Rust type safety (ObjectID, IotaAddress, TransactionData)
 - **Rationale:** CLI provides stability, SDK types provide type safety
-- **IOTA Framework:** v1.13.1 (mainnet compatibility, Dec 18 2025)
+- **IOTA Framework:** v1.21.1 (Protocol 24 mainnet, Starfish consensus)
 
 ```bash
 # Example: Register email → DID mapping
@@ -268,7 +268,7 @@ iota client ptb --gas-budget 10000000 \
 
 **Build Performance:**
 - Current: ~27-30 minutes (Cargo build with iota-sdk types)
-- Dependency: iota-sdk v1.17.2 for type definitions only (mainnet compatible)
+- Dependency: iota-sdk v1.21.1 for type definitions only (Protocol 24 mainnet compatible (Starfish consensus))
 - Trade-off: Type safety (fast iteration) vs pure CLI (faster builds)
 
 **Benefits of Hybrid Approach:**
@@ -291,7 +291,7 @@ graph TD
     end
 
     subgraph "IOTA Infrastructure"
-        IOTA_CLI[IOTA CLI v1.17.2] --> IOTA_Node((IOTA Mainnet<br/>Protocol 20))
+        IOTA_CLI[IOTA CLI v1.21.1] --> IOTA_Node((IOTA Mainnet<br/>Protocol 24))
         IOTA_Node --> Move_Contracts([Identity Registry + Move Contracts v7])
     end
 
@@ -421,14 +421,14 @@ sequenceDiagram
     IOTA Mainnet->>+wot_trust Contract: create_attestation + share_attestation
     wot_trust Contract-->>-IOTA Mainnet: Attestation object created
     IOTA Mainnet-->>-Backend API: TX digest + attestation object ID
-    Backend API-->>-Attester (iPhone): Success + explorer.iota.org link
+    Backend API-->>-Attester (iPhone): Success + explorer.rebased.iota.org link
 ```
 
 **Key Implementation Details (Nov 19, 2025):**
-- ✅ **wot_trust Package**: `0xf8ddc1060e855f09e30e62e74b4355048b2c50c582b68cceaf6f84366cfe8eee`
+- ✅ **Deployed Package** (contains `wot_identity`, `wot_identity_registry`, `wot_trust`, `file_vault`, `mailbox` modules): `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8 contract on mainnet, environment variable `IOTA_REGISTRY_PACKAGE_ID`)
 - ✅ **Privacy-Preserving**: Stores SHA3-256 hash instead of plaintext on-chain
 - ✅ **Gas Sponsored**: Backend pays gas for attestation transactions
-- ✅ **Public Verification**: Attestations visible on explorer.iota.org
+- ✅ **Public Verification**: Attestations visible on explorer.rebased.iota.org (the post-Rebased mainnet explorer; `explorer.iota.org` redirects to the legacy Stardust archive — see `Claude_Primer.md` Rule 10)
 - ✅ **First Production TX**: `4Uz9SxQv6gMyd21wwvZhZ4ZJ5KVsAAo4ia46SbHadWDf`
 
 ## 6. On-Chain Interaction Model: CLI-Based PTBs with SDK Types
@@ -437,7 +437,7 @@ All state-changing interactions with the IOTA ledger are executed via **Programm
 
 **Hybrid Architecture:**
 - **PTB Execution:** IOTA CLI commands construct and submit transactions
-- **Type Definitions:** iota-sdk v1.17.2 provides Rust types (ObjectID, IotaAddress, TransactionData)
+- **Type Definitions:** iota-sdk v1.21.1 provides Rust types (ObjectID, IotaAddress, TransactionData)
 - **No SDK Transaction Builder:** Avoids complex SDK transaction construction APIs
 
 **Benefits:**
@@ -447,7 +447,7 @@ All state-changing interactions with the IOTA ledger are executed via **Programm
 - ✅ Gas station pattern: Backend sponsors user transactions with 24-hour rate limiting
 
 **Build Performance:**
-- Current: ~27-30 minutes with iota-sdk types
+- Current: ~27-30 minutes with iota-sdk v1.21.1 types
 - Trade-off: Type safety and code quality over pure build speed
 
 PTBs are powerful constructs that allow for bundling multiple atomic operations into a single transaction. This is crucial for complex workflows like creating a trust relationship or issuing a verifiable credential.
@@ -481,7 +481,7 @@ The system is configured via environment variables:
 - `IOTA_NODE_URL=https://api.mainnet.iota.cafe`: IOTA mainnet RPC endpoint.
 - `IOTA_PRIVATE_KEY`: Ed25519 private key for Backend's IOTA keystore.
 - `JWT_SECRET_KEY`: HS256 secret for JWT generation and validation.
-- `IOTA_REGISTRY_PACKAGE_ID=0xa389f9b55c811064e53bf1ee84900cafdcbbe05a3cf37bc7086a399ca5f2a8cb`: Identity registry package (January 9, 2026 v7 with FileVault)
+- `IOTA_REGISTRY_PACKAGE_ID=0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302`: Identity registry package (January 9, 2026 v7 with FileVault)
 - `IOTA_REGISTRY_OBJECT_ID=0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92`: Shared registry object
 - `RATE_LIMIT_HOURS=24`: Gas station rate limiting (prevents abuse)
 - `DEFAULT_GAS_BUDGET=1000000000`: Gas budget for Move contract transactions.
@@ -507,7 +507,7 @@ For production deployment (e.g., Render), use public IOTA mainnet endpoints:
 
 ## 9. References
 
-*   **IOTA Node**: [IOTA GitHub](https://github.com/iotaledger/iota) (Protocol 20 Mainnet)
+*   **IOTA Node**: [IOTA GitHub](https://github.com/iotaledger/iota) (Protocol 24 Mainnet, Starfish consensus)
 *   **IOTA CLI**: [IOTA CLI Documentation](https://docs.iota.org/references/cli/client)
 *   **IOTA Move Contracts**: [Move Documentation](https://docs.iota.org/developer/iota-101/move)
 *   **IOTA Identity SDK (Rust)**: [identity.rs GitHub](https://github.com/iotaledger/identity.rs)
@@ -571,7 +571,7 @@ The security implementation follows a **layered defense strategy** with multiple
 **What Can Be Encrypted** (all use same infrastructure):
 | Data Type | Status | Smart Contract Function |
 |-----------|--------|------------------------|
-| Health atoms (lab results, vitals) | ✅ Implemented | `store_health_atom_encrypted()` |
+| Health atoms (lab results, vitals) | ✅ Implemented | `store_atom(atom_type=1, ...)` (v8; replaces `store_health_atom_encrypted()`) |
 | Identity claims (name, DOB, address) | ✅ Implemented | `update_claim_encrypted()` |
 | Documents (passport, certificates) | 🔄 Planned | Uses `EncryptedField` |
 | P2P messages | 🔄 Planned (Phase D) | Mailbox with encrypted payload |
@@ -835,7 +835,7 @@ fn validate_trust_level(level: i16) -> Result<(), ValidationError> {
 The wot.id platform implements W3C DID Core 1.0 compliance:
 
 - **✅ DID Document Structure**: Proper `@context`, `id`, `verificationMethod`, and `authentication` fields
-- **✅ IOTA DID Method**: Uses `did:iota:...` format with IOTA Tangle anchoring
+- **✅ IOTA DID Method**: Uses `did:iota:...` format with IOTA mainnet anchoring
 - **✅ Ed25519 Cryptography**: Secure key generation using `ed25519_dalek` with `OsRng`
 - **✅ Verification Methods**: Ed25519VerificationKey2020 with proper controller references
 
@@ -986,7 +986,11 @@ Content-Type: application/json
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
     sub: String,        // Subject: user email
-    iss: String,        // Issuer: "wot.id-identity-service"
+    iss: String,        // Issuer: "wot.id-identity-service" (legacy string retained
+                        // after the Identity Service was retired March 7, 2026 — see
+                        // docs/2026_Code_Work/26-05-05_Backend_Update.md §2 for
+                        // rename plan; both signing and validation use the same
+                        // string today, so JWTs round-trip correctly)
     aud: String,        // Audience: "wot.id"
     exp: usize,         // Expiry: timestamp + 86400 (24h)
     iat: usize,         // Issued at: current timestamp
@@ -1244,59 +1248,37 @@ The frontend security hardening provides comprehensive client-side protection th
 - 24-hour rate limiting per DID prevents abuse
 - JWT authentication on all identity operations
 
-### 11.2. ✅ IOTA Protocol 20 Mainnet Deployment
+### 11.2. ✅ IOTA Protocol 24 Mainnet Deployment
 
-**Current Infrastructure**: System deployed on IOTA mainnet Protocol 20.
+**Current Infrastructure**: System deployed on IOTA Rebased mainnet, Protocol 24 (Starfish consensus). Backend binary built against `iota-sdk v1.21.1` (verified via Cargo.lock + production startup log line on 2026-05-05T11:07Z; see `docs/2026_Code_Work/26-05-05_SDK_Upgrade_Verified.md`).
 
 **Deployment Status**:
-- ✅ **IOTA Mainnet**: Protocol 20 (accessed via `https://api.mainnet.iota.cafe`)
-- ✅ **Backend API**: CLI-based PTBs + iota-sdk v1.17.2 types + integrated DID generation (Ed25519 + BLAKE3)
-- ✅ **Move Contracts**: Deployed to mainnet v7 (wot_identity_registry, wot_identity, FileVault)
-- ✅ **OAuth Integration**: Google, GitHub operational; Apple 95% complete
+- ✅ **IOTA Mainnet**: Protocol 24 (accessed via `https://api.mainnet.iota.cafe`)
+- ✅ **Backend API**: CLI-based PTBs + iota-sdk v1.21.1 types + integrated DID generation (Ed25519 + BLAKE3)
+- ✅ **Move Contracts**: Deployed to mainnet v7/v8 (wot_identity_registry, wot_identity, FileVault, wot_trust)
+- ✅ **OAuth Integration**: Google, GitHub, Apple operational
 
-### 11.3. ✅ Operational Status (December 2025)
+### 11.3. ✅ Operational Status
 
 **Production Services**:
 - **Frontend**: https://wot.id (Next.js on Vercel)
 - **Backend API**: https://wot-id-backend.onrender.com (Rust/Axum, integrated DID generation)
-- **IOTA Mainnet**: Protocol 20 via public endpoint
+- **IOTA Mainnet**: Protocol 24 via `https://api.mainnet.iota.cafe`
 
 **Development Ports (Local)**:
 - Backend API: Port 10000
 - Frontend: Port 3000
 
-**Current Implementation Status**:
+**Validated Capabilities**:
 - ✅ OAuth auto-provisioning (Google, GitHub, Apple)
 - ✅ Email → DID registry operational
 - ✅ Gas station pattern (backend-sponsored transactions)
 - ✅ QR code generation and scanning
-- ✅ On-chain attestations operational
+- ✅ On-chain attestations operational (`wot_trust.move`)
 - ✅ Post-quantum encryption (X25519 + ML-KEM-768)
 - ✅ W3C DID Core 1.0 compliant
-### 11.2. ✅ IOTA Protocol 20 Current Status
-
-**Current Infrastructure**: Running on IOTA Protocol 20 mainnet.
-
-**Protocol Status**:
-- ✅ **IOTA Mainnet**: Protocol 20 (current mainnet)
-- ✅ **Enhanced Capabilities**: Access to latest IOTA mainnet features
-- ✅ **Improved Performance**: Better transaction processing and consensus
-- ✅ **System References**: All code updated to reflect Protocol 20
-- ✅ **Backward Compatibility**: Existing CLI-based approach continues working
-
-### 11.3. ✅ Operational Status
-
-**All Services Fully Operational**:
-- **Backend API**: Port 10000 (CLI-based transactions, integrated DID generation, Protocol 20)
-- **Frontend**: Port 3000 (Next.js development server)
-- **IOTA Mainnet**: Protocol 20 via `https://api.mainnet.iota.cafe`
-
-**Validated Capabilities**:
 - ✅ Real mainnet transactions confirmed
-- ✅ W3C DID generation operational
 - ✅ JWT authentication working end-to-end
-- ✅ Health monitoring across all services
-- ✅ CLI-based PTB construction functional
 
 ### 11.4. Architecture Benefits Realized
 
@@ -1315,11 +1297,12 @@ The frontend security hardening provides comprehensive client-side protection th
 
 ## 12. Future Considerations
 
-The current architecture represents a mature, production-ready system with Protocol 20 support. The Identity Service was retired in March 2026 after the dependency isolation rationale no longer applied.
+The current architecture represents a mature, production-ready system on Protocol 24 / iota-sdk v1.21.1. The Identity Service was retired in March 2026 after the dependency isolation rationale no longer applied.
 
 **Upcoming Opportunities**:
-- **Protocol 21**: Already on testnet (v1.18.1-rc) — next upgrade will be smaller gap
-- **Identity SDK**: v1.9.2-beta.1 monitoring continues, adoption deferred until stable
-- **Performance Optimizations**: Leverage Protocol 20 enhanced capabilities
+- **Protocol 23**: Monitor for breaking changes and migration timelines
+- **Identity SDK**: v1.9.4 monitoring continues, adoption deferred until stable
+- **Modular `iota-rust-sdk`**: Watch for stable release; types-only swap may shrink build time
+- **Starfish consensus**: IOTA's successor to Mysticeti is on Devnet (April 2025) — protocol upgrade, not a hard fork
 
 The security architecture continues to evolve with emerging threats and quantum computing advances. The post-quantum cryptography foundation ensures long-term security even as quantum computers become more powerful.
