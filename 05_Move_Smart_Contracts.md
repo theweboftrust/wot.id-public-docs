@@ -1,27 +1,37 @@
 # 05: wot.id - Move Smart Contracts
 
-## **Current Implementation Status (January 2026)**
+## **Current Implementation Status (May 2026)**
 
-### **✅ IDENTITY REGISTRY, ATTESTATION & FILE VAULT DEPLOYED**
+### **✅ IDENTITY REGISTRY, ATTESTATION, FILE VAULT & UNIFIED ATOM STORAGE**
 - **Identity Registry**: Decentralized DID → Profile ID mapping with flexible identifiers
-- **wot_id Package ID**: `0xa389f9b55c811064e53bf1ee84900cafdcbbe05a3cf37bc7086a399ca5f2a8cb` **(v7 - January 9, 2026)**
-- **Registry Object ID**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (shared object)
+- **wot_id Package ID**: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` **(v8 deployed March 11, 2026; on-chain version 4)**
+- **Registry Object ID**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (shared object — preserved across the v7 → v8 upgrade)
 - **UpgradeCap**: `0x36f57406ec2957b4d2d8309a417122e614469b65ddcfc299d8501bfc1472d7ea` (secured in cold wallet)
-- **Deployment**: January 9, 2026 v7 (on-chain version 3) - Upgraded via UpgradeCap with FileVault module
-- **Protocol**: IOTA mainnet Protocol 20
-- **Framework**: Move contracts v1.17.2 (edition 2024)
+- **Deployment history**: v7 Jan 9, 2026 (`0xa389f9b55c…`) → **v8 Mar 11, 2026** (`0x14b1e852…`) via UpgradeCap; v8 is additive (legacy v7 entry points preserved). See `docs/2026_Code_Work/26-03-11_SC_Upgrade.md`.
+- **Protocol**: IOTA mainnet Protocol 24 (Starfish consensus; backend SDK upgraded to v1.21.1 May 5, 2026)
+- **Framework**: Move contracts v1.21.1 (edition 2024)
 - **Gas Station**: Backend sponsors transactions with 24-hour rate limiting
 
-### **🎯 Deployed Modules (Operational January 2026)**
+### **🎯 Deployed Modules (v8 Operational)**
 - **`wot_identity_registry`**: Shared registry for flexible identifier system (email, phone, social, etc. → DID)
-- **`wot_identity`**: Identity profiles with atomic data storage (claims, health atoms, biometric atoms)
+- **`wot_identity`**: Identity profiles with unified atom storage — single `EncryptedAtom` struct + `store_atom()` for all 15 atom types (v8), claims via `IdentityClaim`/`EncryptedIdentityClaim`
 - **`wot_trust`**: ✅ **On-chain attestation system (Dec 12, 2025)** - Trust scoring with u64 trust_level, context_uri, and status lifecycle
-- **`file_vault`**: ✅ **NEW (Jan 9, 2026)** - DID-portable encrypted file storage with consent-based sharing
+- **`file_vault`**: ✅ **(Jan 9, 2026)** - DID-portable encrypted file storage with consent-based sharing
 - **`mailbox`**: Encrypted messaging between DIDs
-- **Integration**: Backend uses hybrid CLI + SDK types approach (CLI for transactions, iota-sdk v1.17.2 for types)
+- **Integration**: Backend uses hybrid CLI + SDK types approach (CLI for transactions, iota-sdk v1.21.1 for types)
 - **Test Coverage**: ✅ 49 tests passing (October 2025)
 
-### **🚀 Recent Milestones (January 2026)**
+### **🚀 Recent Milestones (March 2026)**
+- ✅ **Unified Atom Architecture (v8)** (March 10, 2026)
+  - Single `EncryptedAtom` struct replaces 18 per-type structs (15 plaintext + 3 encrypted)
+  - Single `store_atom()` entry function replaces 5 per-type store functions
+  - Added `has_atom_access()` — atom-level privacy enforcement (mirrors `has_claim_access()`)
+  - Added `delete_atom()` — full atom lifecycle management
+  - On-chain per-type validation: contract is the schema authority for multi-client decentralization
+  - All atom data PQC-encrypted by design
+  - Decision record: `docs/2026_Code_Work/26-03-10_Store_Functions.md`
+
+### **🚀 Previous Milestones (January 2026)**
 - ✅ **FileVault Module Deployed** (Jan 9, 2026)
   - Transaction: `4676pQEbfrXvhFizpj4xBsC9BnftHr8gRW3E6QSUXRcw`
   - DID-portable encrypted file storage on-chain
@@ -32,19 +42,19 @@
 - ✅ **First On-Chain Attestation** (Nov 19, 2025)
   - Transaction: `4Uz9SxQv6gMyd21wwvZhZ4ZJ5KVsAAo4ia46SbHadWDf`
   - Attestation Object: `0x04333edab710063e8eea74e0a173a07cf870cbc35fd43877f1102021873948bc`
-  - Verified on: https://explorer.iota.org
+  - Verified on: https://explorer.rebased.iota.org (the post-Rebased mainnet explorer; `explorer.iota.org` redirects to the legacy Stardust archive)
 - ✅ **Privacy-Preserving Design**: SHA3-256 data hashing instead of plaintext storage
 - ✅ **Cross-Device Flow**: QR generation → scanning → on-chain submission (Mac ↔ iPhone tested)
 
-### **🔧 Recent Updates (October 24, 2025)**
+### **🔧 Previous Updates (October 24, 2025)**
 - ✅ **Removed obsolete module**: Deleted old `identity_registry.move` with hardcoded email parameter
-- ✅ **Added missing function**: Implemented `store_health_atom()` in `wot_identity.move`
+- ✅ **Added missing function**: Implemented `store_health_atom()` in `wot_identity.move` *(superseded by v8 `store_atom()` March 2026)*
 - ✅ **Fixed test issues**: Invalid hex addresses, `public_transfer` vs `transfer`, mutable variables
 - ✅ **Fixed trust calculations**: Adjusted test trust scores to reach correct reputation levels
 - ✅ **All tests passing**: Complete test suite validated (49/49 tests)
 
 ### 🚀 Production Operational (November 2025)
-- **Hybrid CLI + SDK Types**: CLI for PTB submission, iota-sdk v1.17.2 for type definitions
+- **Hybrid CLI + SDK Types**: CLI for PTB submission, iota-sdk v1.21.1 for type definitions
 - **Event Indexing**: Backend queries `ProfileRegistered` events for lookups
 - **Gas Costs**: ~0.0076 IOTA per profile creation + registration
 - **Security**: UpgradeCap secured in cold wallet `0xffc7f6eb21333ea9fb27ea707bdd5c812292b2408fcb157ad4086c5b86d1db1e`
@@ -218,7 +228,7 @@ ldl_cholesterol: {
    - **GitHub → DID**: Future addition (dev login)
    - Generic structure supports ANY identifier type without contract changes
 
-**Package ID**: `0xa389f9b55c811064e53bf1ee84900cafdcbbe05a3cf37bc7086a399ca5f2a8cb` (v7 - January 9, 2026)
+**Package ID**: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8 — deployed March 11, 2026; on-chain version 4)
 **Registry Object ID**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92`
 
 ### 2.5.1. Identity Registry Structure Visualization
@@ -305,7 +315,7 @@ graph TB
 - ⚡ Backend queries `ProfileRegistered` events via `iotax_queryEvents` RPC
 - 📊 Events provide complete registration history
 - 🔍 Efficient filtering by DID, address, or timestamp
-- ⛓️ Events immutably recorded on IOTA Tangle
+- ⛓️ Events immutably recorded on the IOTA distributed ledger (DLT)
 
 ## 3. Smart Contract Interaction Flow (Step-by-Step)
 
@@ -334,7 +344,7 @@ graph TB
 | Contract | Responsibility | Object Type | Key Functions |
 |----------|---------------|-------------|---------------|
 | **wot_identity_registry** | Global discovery | Shared | `register_profile`, `lookup_by_*` |
-| **wot_identity** | Data storage | Owned | `create_identity`, `add_claim`, `store_*_atom` |
+| **wot_identity** | Data storage | Owned | `create_identity`, `add_claim`, `store_atom`, `delete_atom`, `has_atom_access` |
 | **wot_trust** | Trust scoring | Owned | `create_trust_profile`, `create_attestation`, `aggregate_claim_trust` |
 
 ### 3.3. Complete Interaction Flow
@@ -417,20 +427,28 @@ profile.trust_profile_id = option::some(trust_profile_id);
 
 #### **Step 5: Add Atomic Data**
 
-**Contract**: `wot_identity.move`  
-**Functions**: `add_claim()`, `store_health_atom()`, `store_biometric_atom()`, etc.
+**Contract**: `wot_identity.move`
+**Functions**: `add_claim()`, `update_claim_encrypted()` for identity claims; `store_atom()` for all atom types (v8)
 
 ```move
-// Health data stored as dynamic fields
-df::add(&mut profile.id, "atom:health:cholesterol_ldl:1234567890", HealthAtom {
-    data_type: "cholesterol_ldl",
-    value: "95 mg/dL",
-    provider: Some("LabCorp"),
-    privacy_level: 3  // PRIVATE
-});
+// v8: All atom types use ONE function with atom_type parameter
+// Health atom (atom_type=1): sublabel required
+store_atom(profile, /*atom_type=*/1, /*label=*/"blood", /*sublabel=*/some("glucose"),
+    primary_enc_version, primary_enc_scheme, primary_enc_nonce, primary_enc_ciphertext,
+    secondary_enc_..., data_hash, metadata_hash, meta_string1, meta_string2,
+    numeric1, numeric2, meta_u8, privacy_level, custom_timestamp, clock, ctx);
+
+// Document atom (atom_type=2): data_hash required, numeric2 >= numeric1
+store_atom(profile, 2, "passport", none(), ...);
+
+// Contact atom (atom_type=4): ciphertext non-empty, numeric1 <= 200000
+store_atom(profile, 4, "friend", none(), ...);
+
+// Key pattern: atom:{type}:{identifier}:{timestamp}
+// e.g. "atom:1:glucose:1726234567"
 ```
 
-**Result**: Each claim/atom has independent privacy control
+**Result**: Each atom has independent privacy control (0-3 scale) and access control via `has_atom_access()`
 
 #### **Step 6: Create Attestations**
 
@@ -571,16 +589,9 @@ public struct IdentityProfile has key, store {
 ```
 
 **Atomic Data Types**:
-```move
-// Health data atoms
-public struct HealthAtom has store, drop {
-    data_type: String,
-    timestamp: u64,
-    value: String,
-    unit: String,
-    metadata: String
-}
 
+*Claims* (identity profile fields — upsert behavior, one per type):
+```move
 // PQC Encrypted identity claim (December 2025)
 public struct EncryptedIdentityClaim has store, drop {
     claim_type: String,
@@ -600,31 +611,49 @@ public struct EncryptedField has store, drop, copy {
     nonce: vector<u8>,      // 12-byte nonce
     ciphertext: vector<u8>, // Encrypted data with auth tag
 }
+```
 
-// Document atoms
-public struct DocumentAtom has store, drop {
-    doc_type: String,
-    doc_hash: String,
-    issuer: String,
-    issue_date: u64,
-    expiry_date: Option<u64>,
-    metadata: String
-}
-
-// Asset atoms
-public struct AssetAtom has store, drop {
-    asset_type: String,
-    asset_id: String,
-    value: u64,
-    currency: String,
-    metadata: String
+*Atoms* (structured, multi-field, time-series data — v8 unified architecture, March 2026):
+```move
+// Universal encrypted atom — ONE struct for ALL 15 atom types
+// Replaces: HealthAtom, DocumentAtom, AssetAtom, ContactAtom, BiometricAtom,
+//           EmotionalAtom, and 12 other per-type structs (all removed in v8)
+public struct EncryptedAtom has store, drop {
+    atom_type: u8,                          // TYPE_HEALTH(1)..TYPE_EMOTIONAL(15)
+    label: String,                          // Primary plaintext label (always required)
+    sublabel: Option<String>,               // Secondary label (e.g. health data_type)
+    primary_enc: EncryptedField,            // Main encrypted value (always required)
+    secondary_enc: Option<EncryptedField>,  // Secondary encrypted value
+    data_hash: Option<vector<u8>>,          // Hash for verification
+    metadata_hash: Option<vector<u8>>,      // Additional hash
+    meta_string1: Option<String>,           // Type-specific string metadata
+    meta_string2: Option<String>,           // Type-specific string metadata
+    numeric1: Option<u64>,                  // Type-specific numeric
+    numeric2: Option<u64>,                  // Type-specific numeric
+    meta_u8: Option<u8>,                    // Type-specific byte
+    timestamp: u64,
+    verified: bool,
+    privacy_level: u8                       // Unified 0-3 scale
 }
 ```
+
+*Field mapping by atom_type*:
+| atom_type | label | sublabel | primary_enc | numeric1 | numeric2 | meta_u8 |
+|-----------|-------|----------|-------------|----------|----------|---------|
+| **1 (Health)** | category | data_type (required) | Encrypted value | — | — | record_type |
+| **2 (Document)** | doc_type | — | Encrypted issuer | issued_at | expires_at | — |
+| **4 (Contact)** | relationship | — | Encrypted DID | trust_level (≤200000) | — | — |
+| **3, 5-15** | Domain label | Optional | Encrypted value | Optional | Optional | Optional |
+
+See `docs/2026_Code_Work/26-03-10_Store_Functions.md` Section 9 for complete field mapping and validation rules.
 
 **Entry Functions** (Callable via CLI):
 - ✅ `add_claim`: Add individual claims to identity
 - ✅ `batch_add_claims`: Add multiple claims efficiently
 - ✅ `update_claim_encrypted`: Add/update PQC encrypted claims (December 2025)
+- ✅ `store_atom`: Store any atom type (v8 — replaces `store_health_atom`, `store_biometric_atom`, `store_emotional_atom`)
+- ✅ `delete_atom`: Remove atom from profile (v8 — new capability)
+- ✅ `has_atom_access`: Check privacy-based access to atoms (v8 — new capability)
 - `create_identity`: Create new identity profiles (via PTB)
 
 ### 3.1.2. PQC Encrypted Identity Claims (December 2025)
@@ -781,7 +810,7 @@ stateDiagram-v2
 **3. Claim Addition** (📊 Data Building):
 - `add_claim()` or `batch_add_claims()` stores data in dynamic fields
 - Each claim has unique ID, stored as separate dynamic field entry
-- Atomic data structures: HealthAtom, DocumentAtom, AssetAtom, etc.
+- Atomic data structures: unified `EncryptedAtom` for all 15 atom types (v8)
 - `total_claims` and `atom_count` increment with each addition
 
 **4. Attestation** (✅ Verification):
@@ -804,12 +833,13 @@ stateDiagram-v2
 
 **Dynamic Field Storage Pattern**:
 ```move
-// Claims storage
-df::add(&mut profile.id, claim_id, claim)
+// Claims storage (upsert — one per type)
+df::add(&mut profile.id, "enc:claim:first_name", encrypted_claim)
 
-// Atomic data storage
-df::add(&mut profile.id, "health:bloodtest:2024", health_atom)
-df::add(&mut profile.id, "document:passport:2024", document_atom)
+// Atom storage (v8 — all types use EncryptedAtom)
+// Key pattern: atom:{type}:{identifier}:{timestamp}
+df::add(&mut profile.id, "atom:1:glucose:1726234567", encrypted_atom)  // Health
+df::add(&mut profile.id, "atom:2:passport:1726234567", encrypted_atom) // Document
 
 // Privacy configurations
 df::add(&mut profile.id, "privacy:health", privacy_config)
@@ -941,14 +971,34 @@ public struct Attestation has store, drop {
 - ✅ `update_trust_score`: Update trust scores
 - `create_trust_profile`: Create trust profiles (via PTB)
 
-### 3.3. Privacy Levels
+### 3.3. Privacy Levels (Unified 0-3 Scale — March 2026)
+
+**Implementation Status**: ✅ **Fully implemented across all layers** (Move, backend, frontend). See `docs/2026_Code_Work/26-03-09_Privacy_Level.md` for complete architecture.
+
 ```move
 const PRIVACY_PUBLIC: u8 = 0;              // Anyone can view
-const PRIVACY_TRUSTED_CONTACTS: u8 = 1;    // Only trusted contacts
-const PRIVACY_SPECIFIC_ENTITIES: u8 = 2;   // Specific addresses only
-const PRIVACY_PRIVATE: u8 = 3;             // Owner only
-const PRIVACY_TEMPORARY_ACCESS: u8 = 4;    // Time-limited access
+const PRIVACY_TRUSTED_CONTACTS: u8 = 1;    // Only contacts in user's trust network
+const PRIVACY_SPECIFIC_ENTITIES: u8 = 2;   // Only explicitly granted addresses/DIDs
+const PRIVACY_PRIVATE: u8 = 3;             // Owner only (DEFAULT for all new data)
+const PRIVACY_TEMPORARY_ACCESS: u8 = 4;    // DEPRECATED — kept for backward compat only
 ```
+
+**Privacy enforcement** (all operational):
+- `has_claim_access(profile, claim_key, privacy_level, viewer, clock)` — enforces privacy for identity claims
+- `has_atom_access(profile, atom_key, privacy_level, viewer, clock)` — enforces privacy for atoms (v8)
+- `set_field_privacy(profile, field_key, level)` — per-field privacy control
+- `create_access_grant(profile, grantee_did, fields, context, expires_at)` — time-limited grants
+- `revoke_access_grant(profile, grantee_did)` — revoke access
+
+**Three-layer privacy architecture**:
+1. **Per-data privacy levels** (0-3) — stored in every `IdentityClaim`, `EncryptedIdentityClaim`, and `EncryptedAtom`
+2. **Per-field access control** — `FieldAccessControl` + `PrivacyAccessGrant` dynamic fields
+3. **Profile-level settings** — `PrivacySettings` in `TrustProfile` (`wot_trust.move`), updatable via `update_privacy_settings()`
+
+**Backend API endpoints** (all JWT-authenticated):
+- `GET/PUT /api/privacy/settings` — read/update profile-level privacy
+- `PUT /api/privacy/field` — set per-field privacy level
+- `POST/DELETE /api/privacy/grant` — grant/revoke time-limited access
 
 ### 3.4. Trust Algorithm Integration
 ```move
@@ -1086,13 +1136,13 @@ The `wot.id` Move smart contracts have been successfully deployed to the IOTA ne
 
 ### 4.1. Deployed Package and Registry IDs
 
-**wot_id Package**: `0xa389f9b55c811064e53bf1ee84900cafdcbbe05a3cf37bc7086a399ca5f2a8cb` (v7 - January 9, 2026)
+**wot_id Package**: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8 — deployed March 11, 2026; on-chain version 4)
 
 **Deployment Details (January 9, 2026 - v7)**:
 - **Registry Object**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (shared, preserved from v5)
 - **UpgradeCap**: `0x36f57406ec2957b4d2d8309a417122e614469b65ddcfc299d8501bfc1472d7ea` (secured in cold wallet)
 - **On-Chain Version**: 3 (upgraded via UpgradeCap)
-- **Status**: Live and operational on IOTA mainnet Protocol 20
+- **Status**: Live and operational on IOTA mainnet Protocol 24
 - **Changes**: FileVault module added, Move 2024 edition compatibility
 
 **Successful Profile Creation Evidence**:
@@ -1104,7 +1154,7 @@ The `wot.id` Move smart contracts have been successfully deployed to the IOTA ne
 **Environment Variables**:
 ```bash
 # January 9, 2026 v7 deployment (FileVault module added)
-IOTA_PACKAGE_ID=0xa389f9b55c811064e53bf1ee84900cafdcbbe05a3cf37bc7086a399ca5f2a8cb
+IOTA_PACKAGE_ID=0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302
 IOTA_REGISTRY_OBJECT_ID=0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92
 IOTA_UPGRADE_CAP_ID=0x36f57406ec2957b4d2d8309a417122e614469b65ddcfc299d8501bfc1472d7ea
 RATE_LIMIT_HOURS=24
@@ -1266,20 +1316,23 @@ The end-to-end workflow for a developer modifying or testing the `wot.id` smart 
 
 #### **🧬 Atomic Data Types in Current Package**:
 
-**Current Package**: `0xa389f9b55c811064e53bf1ee84900cafdcbbe05a3cf37bc7086a399ca5f2a8cb` (v7 - January 9, 2026)
+**Current Package**: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8 — deployed March 11, 2026; on-chain version 4)
 **Previous Package**: `0xf8ddc1060e855f09e30e62e74b4355048b2c50c582b68cceaf6f84366cfe8eee` (v6 - December 30, 2025)
 **Event Query Package**: `0x7638a51d1954d304f2ded3c5c8790ca83f655e646b95e63e4ebae532c419d83d` (v5 - permanent for event types)
 
-1. **16 Atomic Data Types**: Complete human existence data coverage
-   - HealthAtom, DocumentAtom, AssetAtom, ContactAtom, AccountAtom
-   - EducationAtom, WorkAtom, BiometricAtom, BehavioralAtom, CreativeAtom
-   - LegalAtom, TravelAtom, ConsumptionAtom, SpiritualAtom, EmotionalAtom, CommunicationAtom
+1. **15 Atom Type Constants** (v8 — unified `EncryptedAtom` struct for all):
+   - TYPE_HEALTH(1), TYPE_DOCUMENT(2), TYPE_ASSET(3), TYPE_CONTACT(4), TYPE_ACCOUNT(5)
+   - TYPE_EDUCATION(6), TYPE_WORK(7), TYPE_BIOMETRIC(8), TYPE_BEHAVIORAL(9), TYPE_CREATIVE(10)
+   - TYPE_LEGAL(11), TYPE_TRAVEL(12), TYPE_CONSUMPTION(13), TYPE_SPIRITUAL(14), TYPE_EMOTIONAL(15)
+   - All stored via single `store_atom()` with per-type on-chain validation
+   - Per-type structs (`HealthAtom`, `DocumentAtom`, etc.) removed in v8
 
-2. **Advanced Privacy System**: Field-level controls, selective disclosure, temporary grants
-3. **Cross-Module Trust Integration**: Attestation linking, reputation system, trust calculations  
+2. **Advanced Privacy System**: Field-level controls (0-3 scale), selective disclosure, time-limited grants, `has_atom_access()` enforcement
+3. **Cross-Module Trust Integration**: Attestation linking, reputation system, trust calculations
 4. **Batch Operations**: Bulk data storage, mass privacy configuration, access management
-5. **Hierarchical Storage**: Efficient indexing, temporal analytics, optimized queries
+5. **Hierarchical Storage**: Efficient indexing via `AtomIndex` and `TemporalIndex`, optimized queries
 6. **Time-Series Architecture**: Multi-year health data with temporal indexing
+7. **Full Lifecycle Management**: `store_atom()` + `delete_atom()` + `has_atom_access()` (v8)
 
 #### **🌍 Real-World Implementation Validated**:
 
