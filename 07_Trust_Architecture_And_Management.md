@@ -1,7 +1,7 @@
 # 07: wot.id - Comprehensive Trust Architecture
 
-> **Current Status: On-Chain Attestation System Operational (December 2025)**
-> The `wot.id` trust architecture uses custom Move contracts deployed on IOTA mainnet. The **wot_trust.move** contract (`0xe66ba1358fb2a1c002dedf00ec11dd7423f2212babfed21f0890c90761405cef`) provides on-chain attestation creation, storage, and sharing with u64 trust_level, context_uri, and status lifecycle. The **Identity Registry** provides decentralized DID→Profile lookups. Backend uses CLI-based PTB construction with iota-sdk v1.13.1 types and gas station pattern.
+> **Current Status: On-Chain Attestation System Operational (May 2026)**
+> The `wot.id` trust architecture uses custom Move contracts deployed on IOTA mainnet. The **`wot_trust` module** lives in the unified `wot_id` package (`0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302`, v8 deployed March 11, 2026; the historical standalone deploys at `0xe66ba135…` and `0xf8ddc106…` are no longer addressed by the backend) and provides on-chain attestation creation, storage, and sharing with u64 trust_level, context_uri, and status lifecycle. The **Identity Registry** provides decentralized DID→Profile lookups. Backend uses CLI-based PTB construction with iota-sdk v1.21.1 types (Protocol 24, Starfish consensus) and the gas station pattern.
 
 ## 1. Introduction and Core Philosophy
 
@@ -102,12 +102,12 @@ This approach ensures decentralized lookups without centralized databases while 
 **✅ OPERATIONAL FEATURES:**
 
 **On-Chain Attestation System (Nov 19, 2025):**
-- ✅ **wot_trust.move Contract**: Deployed at package `0xf8ddc1060e855f09e30e62e74b4355048b2c50c582b68cceaf6f84366cfe8eee`
+- ✅ **wot_trust module**: deployed in the unified `wot_id` package `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8, March 11, 2026). The historical `0xf8ddc1060e…` was a pre-v8 standalone deploy and is no longer addressed by the backend. See `docs/2026_Code_Work/26-03-11_SC_Upgrade.md`.
 - ✅ **create_attestation**: Creates attestation objects with privacy-preserving SHA3-256 data hashes
 - ✅ **share_attestation**: Makes attestations publicly accessible on-chain
 - ✅ **First Production TX**: `4Uz9SxQv6gMyd21wwvZhZ4ZJ5KVsAAo4ia46SbHadWDf`
 - ✅ **Attestation Object**: `0x04333edab710063e8eea74e0a173a07cf870cbc35fd43877f1102021873948bc`
-- ✅ **Explorer Verification**: Visible on https://explorer.iota.org
+- ✅ **Explorer Verification**: Visible on https://explorer.rebased.iota.org (the post-Rebased mainnet explorer; do not use `explorer.iota.org` — that redirects to the legacy Stardust archive)
 
 **QR Code Attestation Flow (Nov 17, 2025):**
 - ✅ **Phase 1A - QR Generation**: `POST /api/v1/attestation/generate-qr`
@@ -729,7 +729,7 @@ public struct TrustProposal has key, store {
 1. **Proposal Creation**: Community members propose trust profile updates
 2. **Voting Period**: Stakeholders vote on proposals with transparent tracking
 3. **Execution**: Approved proposals automatically execute trust updates
-4. **On-Chain Verification**: All governance actions are recorded on IOTA Tangle for transparency
+4. **On-Chain Verification**: All governance actions are recorded on the IOTA distributed ledger for transparency
 
 This ensures democratic, transparent, and cryptographically verifiable trust management.
 
