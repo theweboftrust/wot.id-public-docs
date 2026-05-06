@@ -4,7 +4,7 @@
 
 This document outlines the strategic approach for the adoption of `wot.id`. It is grounded in Everett M. Rogers' seminal "Diffusion of Innovations" theory, using the recent market entry of Meta's Threads as a practical case study to inform our strategy and avoid common pitfalls in launching network-based technologies.
 
-- **The Innovation:** `wot.id` is not merely a new application; it is a fundamental innovation in digital trust and identity. It offers a shift from centralized, platform-controlled identity to a decentralized, user-sovereign model built on the IOTA Tangle. Its success depends not just on its technical merits, but on how effectively it diffuses through social systems.
+- **The Innovation:** `wot.id` is not merely a new application; it is a fundamental innovation in digital trust and identity. It offers a shift from centralized, platform-controlled identity to a decentralized, user-sovereign model built on IOTA's distributed ledger (DLT). Its success depends not just on its technical merits, but on how effectively it diffuses through social systems.
 
 - **The Mission:** To strategically manage the diffusion of this innovation to achieve widespread, sustainable adoption. Our goal is to move beyond initial hype and successfully "cross the chasm" from niche technical enthusiasts to mainstream users.
 
@@ -14,12 +14,12 @@ This document outlines the strategic approach for the adoption of `wot.id`. It i
 The innovation described in this document has a solid technical foundation:
 
 **Technical Infrastructure**:
-- ✅ **W3C DID Compliance**: Via identity.rs SDK (IOTA's official W3C DID implementation)
-- ✅ **Identity Registry Deployed**: Decentralized DID→Profile lookups on IOTA mainnet
-- ✅ **100% On-Chain Data**: All identity VALUES stored on blockchain with trust scores
-- ✅ **Gas Station Pattern**: Users create profiles without owning IOTA tokens
-- ✅ **CLI-Based Backend**: Stateless backend queries blockchain via IOTA CLI
-- ✅ **OAuth Integration**: Google sign-in for familiar user experience
+- ✅ **W3C DID Core 1.0 Compliance**: DID generation inlined in the Backend API using Ed25519 + BLAKE3 (the official IOTA Identity SDK was evaluated and abandoned; the dedicated Identity Service was retired March 7, 2026 — see `docs/2026_Code_Work/26-03-07_Identity_Service.md`).
+- ✅ **Identity Registry Deployed**: Decentralized DID→Profile lookups on IOTA mainnet via the unified `wot_id` package (`0x14b1e852…`, v8 deployed March 11, 2026).
+- ✅ **100% On-Chain Data**: All identity VALUES stored on blockchain with trust scores.
+- ✅ **Gas Station Pattern**: Users create profiles without owning IOTA tokens (24-hour rate limiting per DID).
+- ✅ **CLI-Based Backend**: Stateless backend queries blockchain via IOTA CLI v1.21.1 (Protocol 24, Starfish consensus).
+- ✅ **OAuth Integration**: Google, GitHub, Apple — sign-in via NextAuth, JWT issued by `/api/auth/exchange`.
 
 **Current Architecture Principles**:
 - **Primary Identifier**: W3C DID (`did:iota:mainnet:...`) - immutable, cryptographic
@@ -37,7 +37,7 @@ The innovation described in this document has a solid technical foundation:
 
 **Key References for Technical Foundation**:
 - W3C DID Core v1.0: https://www.w3.org/TR/did-core/
-- IOTA identity.rs: https://github.com/iotaledger/identity.rs
+- IOTA Identity SDK: https://github.com/iotaledger/identity.rs (reference only — wot.id does **not** use this SDK; W3C DID generation is inlined in the Backend API per `docs/2026_Code_Work/26-03-07_Identity_Service.md`).
 - See: `docs/01_Project_Overview_And_Principles.md` for architecture details
 
 This positions wot.id with a solid, standards-compliant foundation ready for adoption among Innovators and Early Adopters.
@@ -61,7 +61,7 @@ According to Rogers, the rate of adoption is determined by five perceived attrib
 ### 2.3. Complexity
 *(How difficult is it to understand and use?)*
 
-- **The `wot.id` Challenge:** The underlying concepts (DIDs, VCs, Tangle) are inherently complex. Direct exposure would halt diffusion immediately.
+- **The `wot.id` Challenge:** The underlying concepts (DIDs, VCs, distributed ledger technology) are inherently complex. Direct exposure would halt diffusion immediately.
 - **Lesson from Threads:** Threads was praised for its simplicity. However, its lack of depth and features ultimately contributed to its user retention crisis. **Strategy:** Our core strategy is **"Progressive Decentralization."** Users start in a simple, managed environment. We introduce concepts like self-custody and key management only when the user is ready and motivated, turning complexity into an opt-in path for empowerment rather than a mandatory entry barrier.
 
 ### 2.4. Trialability
