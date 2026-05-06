@@ -17,12 +17,14 @@ The user experience of wot.id is shaped by its core commitments to user empowerm
 
 ## 2. Frontend Architecture and Technology Stack
 
-### 2.1. Current Status (December 2025)
+### 2.1. Current Status (May 2026)
 
-**Deployment Status**: ✅ **PRODUCTION OPERATIONAL** at https://wot.id (Vercel)
-**Backend Integration**: ✅ **CLI-BASED** - Backend uses IOTA CLI for all blockchain interactions
-**Protocol**: IOTA mainnet Protocol 17 with iota-sdk v1.13.1 type definitions
-**Technology Stack**: Next.js 14+ (App Router), React 18, TypeScript, Tailwind CSS
+**Deployment Status**: ✅ **PRODUCTION OPERATIONAL** at https://wot.id (Vercel; Next.js standalone output, not static export)
+**Backend Integration**: ✅ **CLI-BASED** - Backend uses IOTA CLI v1.21.1 for all blockchain interactions
+**Protocol**: IOTA mainnet Protocol 24 (Starfish consensus) with iota-sdk v1.21.1 type definitions
+**Technology Stack**: Next.js 15.5.7 (App Router), React 19, TypeScript, Tailwind CSS
+**Auth flow**: NextAuth (Google/GitHub/Apple) → frontend exchanges email for backend JWT via `POST /api/auth/exchange` (the legacy `/auth/token` chain to the retired Identity Service was repaired May 5, 2026 — see `docs/2026_Code_Work/26-05-05_Auth_Repair.md`).
+**Crypto state machine**: encryption keys live in IndexedDB (`wot-crypto.encryption-keys[did]`); backup-confirmation flag in `localStorage[\`${BACKUP_KEY}_${did}\`]`. Recovery from BIP-39 mnemonic now persists the backup flag (Fix A); save-handlers refuse to call `initializeNew()` when on-chain ciphertext exists (Fix B/C). See `docs/2026_Code_Work/26-05-06_Key_Regen_Incident.md`.
 
 **December 2025 Production Features**:
 - ✅ **OAuth Auto-Provisioning**: Google, GitHub operational; Apple 95% complete
@@ -125,7 +127,7 @@ The wot.id frontend architecture follows strict principles:
 - Privacy: no sensitive data persisted in browser
 
 **Standards Foundation:**
-- W3C DIDs created by Identity Service (via identity.rs)
+- W3C DIDs created by the Backend API (Ed25519 + BLAKE3, inlined; the Identity Service was retired March 7, 2026 — see `docs/2026_Code_Work/26-03-07_Identity_Service.md`)
 - Backend stores DID + secondary identifier→DID mappings on-chain (generic registry)
 - Frontend displays VALUES with trust scores from blockchain
 
@@ -143,7 +145,7 @@ graph TD
         D --> IDS[Identity Service<br/>W3C DID Core 1.0];
         IDS --> CRYPTO[Ed25519 + BLAKE3<br/>Cryptographic Derivation];
         D --> CLI[IOTA CLI];
-        CLI --> E[IOTA Mainnet<br/>Protocol 17];
+        CLI --> E[IOTA Mainnet<br/>Protocol 24];
         D --> IDX[Event Indexer];
         IDX --> E;
     end
@@ -170,7 +172,7 @@ graph TD
 *   **Ed25519 + BLAKE3**: Cryptographic DID derivation - generates keypair, derives DID from public key hash.
 *   **IOTA CLI**: Backend executes CLI commands to interact with mainnet (no SDK transaction builder).
 *   **Event Indexer**: Backend queries `ProfileRegistered` events to find profile IDs by DID.
-*   **IOTA Mainnet**: All identity data stored on-chain as Move objects in registry and profiles (Protocol 17).
+*   **IOTA Mainnet**: All identity data stored on-chain as Move objects in registry and profiles (Protocol 24, Starfish consensus).
 *   **Identity Registry**: Shared object storing DID→Profile mappings and secondary identifier→DID registry (generic for email/phone/social) at `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (December 29, 2025 v6).
 
 ### 2.2. Technology Stack
@@ -391,7 +393,7 @@ interface TrustAttestationData {
 2. Reviews displayed trust statement and shared information
 3. **Binary**: Confirms TRUE (+100,000) or FALSE (0)
 4. **Scaled**: Selects trust value via appropriate interface
-5. Trust attestation submitted to IOTA Tangle
+5. Trust attestation submitted to the IOTA distributed ledger (Mysticeti BFT consensus over a DAG; storage on the Move-VM object ledger)
 
 #### 2.3.5. Security and Privacy Features
 
