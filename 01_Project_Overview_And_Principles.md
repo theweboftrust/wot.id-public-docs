@@ -225,7 +225,7 @@ graph TD
     style ONCHAIN fill:#16a085,color:#fff
 ```
 
-**Current Implementation (Production - March 2026):**
+**Current Implementation (Production - May 2026):**
 
 🟢 **wot.id Backend API** (Integrated W3C-Compliant DIDs)
    - Generates cryptographically secure DIDs derived from Ed25519 public keys
@@ -235,6 +235,7 @@ graph TD
    - **Status: ✅ Production deployed and operational**
 
 **DID Generation:**
+
 ```rust
 // Backend API generates Ed25519 keypair
 let signing_key = SigningKey::from_bytes(&rand::random::<[u8; 32]>());
@@ -250,6 +251,7 @@ let did = format!("did:iota:mainnet:{}", did_identifier);
 > **Note on legacy DIDs**: Accounts created before March 2026 use a UUID-style identifier (e.g. `did:iota:mainnet:dcc429e0-3eba-41c8-9635-b373614ecf92`) generated via `Uuid::new_v4()`. The byte length is identical (16 bytes / 32 hex chars), only the formatting differs. Both formats coexist in the on-chain registry and resolve correctly. New accounts use the plain-hex format described above.
 
 **W3C DID Document (Generated on request):**
+
 ```json
 {
   "@context": [
@@ -273,7 +275,7 @@ let did = format!("did:iota:mainnet:{}", did_identifier);
 - ✅ DID → Profile mapping in `wot_identity_registry.move`
 - ✅ Secondary identifiers (email, phone) → DID mapping
 - ✅ All claims and trust data stored on-chain
-- ✅ Package: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8 deployed March 11, 2026; the historical `0xf8ddc1060e…` was a pre-v8 standalone deploy and is no longer addressed by the backend)
+- ✅ Package: `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299` (v11 deployed May 23, 2026 — Move-layer cleanup release (V11-1…V11-14: hardened attestation auth v2, typed governance v2, real trust aggregates, plus 9 body-only fixes) — see `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md`; v9 `0x4a71c629…` was the prior version and is no longer addressed by the backend; the historical `0xf8ddc1060e…` was a pre-v8 standalone deploy and is also no longer addressed). See `docs/2026_Code_Work/26-05-17_SC_V10_Upgrade.md`.
 
 **W3C Compliance Summary:**
 
@@ -305,6 +307,7 @@ let did = format!("did:iota:mainnet:{}", did_identifier);
 wot.id implements a clear hierarchical identity architecture:
 
 **Primary Identifier: W3C DID**
+
 ```
 Format: did:iota:mainnet:<identifier>
 Example: did:iota:mainnet:af364f192213f8d9ac1425ce2a62a051
@@ -319,6 +322,7 @@ Properties:
 ```
 
 **Secondary Identifiers: Access Methods**
+
 ```
 Examples:
 - email: user@example.com
@@ -334,6 +338,7 @@ Properties:
 ```
 
 **User Flow Example:**
+
 ```
 1. User clicks "Sign in with Google" → Frontend obtains email
 2. Frontend calls Backend API with email
@@ -610,12 +615,12 @@ These 10 technical principles define the implementation approach for `wot.id`, r
 1.  **DAG-Based Consensus Architecture**: Utilizes a Directed Acyclic Graph (DAG) for processing transactions in parallel. Consensus is achieved via the **Mysticeti** protocol, a Byzantine Fault Tolerant (BFT) algorithm that provides low-latency, high-throughput, and energy-efficient finality. This is a significant evolution from traditional, linear blockchains. (See: [Consensus on IOTA](https://docs.iota.org/about-iota/iota-architecture/consensus)).
 2.  **Decentralized Validator Network**: The network is secured by a committee of validators operating under a **Delegated Proof-of-Stake (dPoS)** system. Token holders delegate their stake to validators, ensuring that no central authority controls the network. (See: [Consensus on IOTA](https://docs.iota.org/about-iota/iota-architecture/consensus) and [IOTA Proof of Stake](https://docs.iota.org/about-iota/tokenomics/proof-of-stake)).
 3.  **Real-Time, Low-Cost Transactions**: IOTA's architecture is designed for high performance, enabling near real-time interactions. While core value transfers are feeless, smart contract execution requires gas, ensuring validators are compensated for computational effort. (See: [IOTA Gas Pricing](https://docs.iota.org/about-iota/tokenomics/gas-pricing) and [Gas in IOTA](https://docs.iota.org/about-iota/tokenomics/gas-in-iota))
-4.  **Hybrid Data Storage Strategy**: **Core identity data** (DIDs, profiles, claims, trust scores) lives **100% on-chain** via the identity registry and profile objects on IOTA mainnet. **Supporting documents** (PDFs, images, files) are stored off-chain (local/cloud/IPFS) with deterministic cryptographic links (SHA-256 hashes) anchored on-chain for verification.
-5.  **Security and Privacy by Design**: Security is anchored by proven cryptography for digital signatures and the robust ownership model of the **Move programming language**, which prevents many common smart contract vulnerabilities at the compiler level. Privacy is enforced via a **unified 0-3 privacy scale** (Public → Trusted Contacts → Specific Entities → Private) with three enforcement layers: per-data privacy levels on every claim and atom, per-field access control with time-limited grants, and profile-level privacy settings. (See: [Security on IOTA](https://docs.iota.org/about-iota/iota-architecture/iota-security), [Move Concepts](https://docs.iota.org/developer/iota-101/move-overview/), `docs/2026_Code_Work/26-03-09_Privacy_Level.md`).
+4.  **wot.id Stores VALUES, Not Files (Hybrid Data Storage Strategy)**: wot.id is, concretely, **an interface for managing atomic data VALUES on the IOTA blockchain — write, read, share.** The values — `first_name = "Alice"`, `glucose = 120`, `passport_no = "X12345"`, `date_of_birth = 1985-03-14`, etc. — are extracted by the user from their own documents. The source documents (PDFs of lab reports, scans of ID cards, CSV exports from banks, photos) **stay on the user's own device or in their own cloud storage** — wot.id is not a file storage provider. What lives **100% on-chain** via the identity registry and profile objects on IOTA mainnet are the **encrypted VALUES** (identity claims, health atoms, trust scores), surfaced via domain sections (Identity Section, Health Section, etc.). What binds those on-chain values to the off-chain source documents is the **same client-side encryption key**, derived from the user's BIP-39 mnemonic — it encrypts at the source, decrypts on chain, and re-wraps for sharing. — Separately, the **Encrypted Files surface** (`wot_files.move`) is the **edge case**: a *catalog of files the user has chosen to link to their wot.id identity*. A linked file might or might not correspond to a source document from which values were also extracted; those are independent decisions. The file itself lives wherever the user keeps it; the on-chain record holds only the encrypted DEK + metadata + a `storage_location` / `storage_ref` pointer. wot.id is the file's *catalog and access-control layer*, not its home. See: `docs/09_Data_Storage_And_Asset_Management.md` §1, `docs/Claude_Primer.md` §17.
+5.  **Security and Privacy by Design**: Security is anchored by proven cryptography for digital signatures and the robust ownership model of the **Move programming language**, which prevents many common smart contract vulnerabilities at the compiler level. Privacy is enforced via a **3-band privacy scale** — `0 = Public`, `2 = Selective` (specific entities via owner-issued time-limited `PrivacyAccessGrant`), `3 = Private` (default for new writes) — with two enforcement layers: per-data privacy levels on every claim and atom, and per-field access control with time-limited grants. The previously enumerated levels `1 = Trusted Contacts` and `4 = Temporary Access` were dropped in v9 (May 8, 2026): level 1 had no read-side resolver and level 4 was deprecated in favor of `PrivacyAccessGrant`; both are now rejected by Move and backend write paths with `E_DEPRECATED_PRIVACY_LEVEL` / `E_INVALID_PRIVACY_LEVEL`. Legacy on-chain rows at level 1 or 4 remain readable by their owner. (See: [Security on IOTA](https://docs.iota.org/about-iota/iota-architecture/iota-security), [Move Concepts](https://docs.iota.org/developer/iota-101/move-overview/), `docs/2026_Code_Work/26-05-07_2026_Q2_Plan_Update2.md` §C2/M4, `docs/2026_Code_Work/26-05-08_SC_Upgrade.md`).
 6.  **Atomic Data Structure & Modularity**: Implements atomic and independently manageable data fragments for identity and credentials. Identity is not a monolithic profile but is composed of secure, atomic data fragments shared selectively.
-7.  **Crypto-Agility & Future-Proof Security**: All sensitive identity data is protected by **quantum-resistant encryption** using hybrid X25519 + ML-KEM-768 (NIST FIPS 203). The encryption infrastructure supports all data types: identity claims (name, DOB, address), health data, documents, and P2P messages. Users own their encryption keys via BIP-39 mnemonic backup—wot.id servers never see plaintext sensitive data. (See: `docs/02_System_Architecture.md` section 10.2)
+7.  **Crypto-Agility & Future-Proof Security**: All sensitive identity data is protected by **quantum-resistant encryption** using hybrid X25519 + ML-KEM-768 (NIST FIPS 203, `@noble/post-quantum` v0.6.1 — replaced the WebAssembly `@dashlane/pqc-kem-kyber768-browser` on 2026-05-26 because Dashlane exposed no deterministic-keygen API). The encryption infrastructure supports all data types: identity claims (name, DOB, address), health data, documents, and P2P messages. Users own their encryption keys via BIP-39 mnemonic backup—wot.id servers never see plaintext sensitive data. Since the 2026-05-26 library swap (`docs/2026_Code_Work/26-05-26_PQ_Cryptography.md`), the ML-KEM-768 keypair is also derived deterministically from the BIP-39 mnemonic via HKDF-SHA256 (salt `wot.id/mlkem-768/v1`), so a single seed phrase recovers both halves of the hybrid keypair — the previous CSPRNG-based ML-KEM keygen made disclosure-shares-received unrecoverable across devices, which Open-Issues #9 (now closed) tracked. (See: `docs/02_System_Architecture.md` section 10.2)
 8.  **Device-to-Device Trust & P2P Flows**: Establishes and verifies identity through direct, peer-to-peer attestations and device-to-device flows.
-9.  **IOTA-Native and W3C-Compliant**: All on-chain logic is built using IOTA-native technologies, primarily **Move smart contracts** deployed directly on IOTA mainnet (Protocol 24, Starfish consensus). The system uses a custom **Identity Registry** pattern (`wot_identity_registry.move`) for decentralized DID-to-Profile lookups. Backend API generates W3C DID Core 1.0 compliant DIDs using Ed25519 + BLAKE3 cryptographic derivation and executes transactions via IOTA CLI with iota-sdk v1.21.1 for type definitions. (See: [Move Concepts | IOTA Documentation](https://docs.iota.org/developer/iota-101/move-overview/))
+9.  **IOTA-Native and W3C-Compliant**: All on-chain logic is built using IOTA-native technologies, primarily **Move smart contracts** deployed directly on IOTA mainnet (Protocol 26, Starfish consensus). The system uses a custom **Identity Registry** pattern (`wot_identity_registry.move`) for decentralized DID-to-Profile lookups. Backend API generates W3C DID Core 1.0 compliant DIDs using Ed25519 + BLAKE3 cryptographic derivation and submits transactions via the `iota` CLI v1.23.2. The Rust `iota-sdk` Cargo dep that was previously kept around for type aliases was removed on 2026-05-26 (Open-Issues #12 closed — `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`); the backend is now CLI-only. (See: [Move Concepts | IOTA Documentation](https://docs.iota.org/developer/iota-101/move-overview/))
 10. **Universal TrustLevel & Selective Disclosure**: A universal TrustLevel (-100,000 to +100,000) is enforced everywhere, where negative values indicate distrust, zero represents neutrality, and positive values indicate trust. All flows reference and enforce selective disclosure and user sovereignty.
 
 These principles must be referenced and enforced when designing and implementing any aspect of `wot.id`.
@@ -672,7 +677,7 @@ Key areas of alignment include:
 
 ## 6. Implementation Status & Roadmap
 
-### 6.1. Current Status (March 2026)
+### 6.1. Current Status (May 2026)
 
 **Production: W3C-Compliant Decentralized Identity**
 
@@ -685,11 +690,12 @@ Key areas of alignment include:
 - ✅ QR code attestations (cross-device flow operational)
 - ✅ On-chain attestation submission via `wot_trust.move`
 - ✅ Post-quantum encryption (X25519 + ML-KEM-768)
-- ✅ Unified privacy architecture (0-3 scale, three-layer enforcement, March 2026)
+- ✅ Unified privacy architecture (3-band scale 0/2/3, two-layer enforcement; v9 May 8, 2026)
 - ✅ Single Backend API (Rust/Axum, Identity Service retired March 2026)
-- ✅ IOTA mainnet deployment (Protocol 24, iota-sdk v1.21.1, Starfish consensus)
+- ✅ IOTA mainnet deployment (Protocol 26, Starfish consensus, CLI v1.23.2; Rust `iota-sdk` Cargo dep removed 2026-05-26 — Open-Issues #12 closed)
 
 **Architecture:**
+
 ```
 User → OAuth Login → Backend API
   ↓
@@ -705,16 +711,17 @@ User → OAuth Login → Backend API
 - Backend: https://wot-id-backend.onrender.com
 
 **Key Milestones Achieved:**
-- ✅ **Post-Quantum Cryptography Stack** (Dec 30, 2025)
+- ✅ **Post-Quantum Cryptography Stack** (Dec 30, 2025; library swap May 26, 2026)
   - Hybrid X25519 + ML-KEM-768 encryption for all identity fields
   - Production verified: [Transaction 5se44XYL...](https://explorer.rebased.iota.org/txblock/5se44XYLAHWHMjZT4VXaYCvyh1ueq7QjGV7u36ZCJD7)
-  - Client-side encryption using pqc.js (Dashlane WebAssembly implementation)
+  - Client-side encryption using `@noble/post-quantum` v0.6.1 (audited TypeScript; FIPS 203 ML-KEM-768). Replaced `@dashlane/pqc-kem-kyber768-browser` (WebAssembly) on 2026-05-26 because Dashlane exposed no deterministic-keygen API — see `docs/2026_Code_Work/26-05-26_PQ_Cryptography.md` and `docs/2026_Code_Work/26-05-26_ML_KEM_Determinism_Plan.md`.
+  - **Both halves of the hybrid keypair are now deterministic from the BIP-39 mnemonic** (X25519 from BIP-39 seed → BLAKE3 since Dec 2025; ML-KEM-768 from BIP-39 seed → X25519 priv → HKDF-SHA256 with salt `wot.id/mlkem-768/v1` → 64-byte `(d || z)` → `ml_kem_768.keygen(seed)` since May 26, 2026). Closes Open-Issues #9. Canonical hash pinned in `frontend/src/lib/crypto/mlkem-derivation.test.ts`: `95aa4ac2c5b69b8180e8e6e40735c6cd5bc446ffab2a4e7b113692c79eef699d`.
   - 24-word BIP-39 mnemonic for key backup/recovery
-- ✅ **Smart Contract v7** (Jan 9, 2026) / **v8 architecture** (March 10, 2026)
-  - Package ID: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v7 deployed; v8 pending deployment)
-  - Registry Object: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92`
-  - v8: Unified `EncryptedAtom` struct + single `store_atom()` function for all 15 atom types
-  - v8: Added `has_atom_access()` and `delete_atom()` — atoms now have full lifecycle management
+- ✅ **Smart Contract v11** (May 23, 2026 — Move-layer cleanup release)
+  - Package ID: `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299`
+  - Registry Object: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (unchanged across upgrades)
+  - **Lineage**: v7 (Jan 9, 2026) → v8 (Mar 11, 2026, unified `EncryptedAtom` + `store_atom()` for all 15 atom types; added `has_atom_access()` and `delete_atom()`) → v9 (May 8, 2026, privacy-level cleanup: drops `PRIVACY_TRUSTED_CONTACTS = 1` and `PRIVACY_TEMPORARY_ACCESS = 4` constants, write paths now reject those values) → v10 (May 17, 2026, adds `create_identity_entry` entry wrapper for user-signed identity creation; storage and existing function signatures unchanged) → **v11 (May 23, 2026, Move-layer cleanup release V11-1…V11-14)**: hardened attestation auth via `create_attestation_v2` (sender-derived attester), typed governance via `TrustProposalV2` + v2 entry trio, real trust aggregates via `AtomTrustAggregate` / `ProfileTrustAggregate` maintained by `link_attestation`, plus 9 body-only fixes (constant-key bugs, `total_claims` counter, FileVault event prefixes, etc.) and a framework rev bump v1.21.1 → v1.23.2.
+  - See `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md` + `docs/2026_Code_Work/26-05-23_Move_V11_Phase_A_Execution.md` / `Phase_B` / `Phase_C` for the v11 publish record; `docs/2026_Code_Work/26-05-17_SC_V10_Upgrade.md` for v10; `docs/2026_Code_Work/26-05-08_SC_Upgrade.md` for v9.
 - ✅ **First On-Chain Attestation** (Nov 19, 2025)
   - Transaction: `4Uz9SxQv6gMyd21wwvZhZ4ZJ5KVsAAo4ia46SbHadWDf`
 - ✅ **OAuth Auto-Provisioning** (Nov 11, 2025)
@@ -722,7 +729,19 @@ User → OAuth Login → Backend API
 - ✅ **Cross-Device QR Attestations** (Nov 17, 2025)
   - EdDSA-signed JWT with 1-hour expiration
 
-### 6.2. Future Enhancements
+### 6.2. Q2 2026 Pilot
+
+**Audience**: IOTA community open beta. Hochschule Stralsund and other institutional pilots were dropped from Q2 on 2026-05-10.
+
+**Funding model**: every newly-created account is auto-funded with 1 IOTA from the gas-station wallet, hard cap 1,000 trial accounts (≈ €50 envelope). At ~0.005 IOTA per typical user-paid transaction, 1 IOTA covers ~200 transactions.
+
+**Goal**: 5+ test users using wot.id independently by June 30, 2026.
+
+**Open onboarding decision** (one item): immediate vs deferred funding (fund 1 IOTA at signup, or only after first independent peer attestation). Recommendation: deferred — collapses faucet-attack incentive.
+
+See `docs/2026_Code_Work/26-05-10_2026_Pilot_Strategy.md` for the operational source of truth.
+
+### 6.3. Future Enhancements
 
 **Optional: External DID Resolution**
 
@@ -742,7 +761,7 @@ The current implementation is fully functional for wot.id users. Optional future
 
 The `wot.id` project is committed to realizing a truly decentralized, user-centric digital future. By adhering to these foundational principles and leveraging the cutting-edge technology of the IOTA protocol, `wot.id` aims to provide a secure, private, and empowering platform for all its users.
 
-**Current Status:** wot.id is production-ready with W3C DID Core 1.0 compliant identities, on-chain storage on IOTA mainnet, and the world's first post-quantum encryption for self-sovereign identity. The platform is ready for user onboarding and external partnerships.
+**Current Status:** wot.id is production-ready with W3C DID Core 1.0 compliant identities, on-chain storage on IOTA mainnet (v11 contract package since May 23, 2026), and the world's first post-quantum encryption for self-sovereign identity. The IOTA-community open-beta pilot is the active Q2 2026 traction effort (`docs/2026_Code_Work/26-05-10_2026_Pilot_Strategy.md`).
 
 ## 8. References
 
@@ -761,4 +780,3 @@ This document is grounded in the official IOTA documentation. For further detail
     *   [Gas in IOTA](https://docs.iota.org/about-iota/tokenomics/gas-in-iota)
 *   **Security:**
     *   [Security on IOTA](https://docs.iota.org/about-iota/iota-architecture/iota-security)
-    *   

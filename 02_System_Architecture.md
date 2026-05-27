@@ -114,8 +114,8 @@ The Backend API is a single Rust service that handles all responsibilities:
 
 The `wot.id` platform consists of two primary components:
 
-*   **Backend API**: The central orchestrator, built with Rust and Axum. Constructs PTBs via IOTA CLI commands, uses iota-sdk v1.21.1 for type definitions. Generates W3C DID Core 1.0 compliant identifiers (Ed25519 + BLAKE3). Implements hybrid economic model: gas sponsorship for profile creation (24h rate limiting), personal wallets for user-funded transfers. Provides WebSocket relay for P2P messaging.
-*   **IOTA Mainnet**: Protocol 24 accessed via public API endpoint `https://api.mainnet.iota.cafe`. All identity data lives on-chain as Move objects.
+*   **Backend API**: The central orchestrator, built with Rust and Axum. Constructs PTBs via IOTA CLI commands; the Rust `iota-sdk` Cargo dep was removed on 2026-05-26 (Open-Issues #12 closed — see `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`), so the integration is CLI-only. Generates W3C DID Core 1.0 compliant identifiers (Ed25519 + BLAKE3). Implements hybrid economic model: gas sponsorship for profile creation (24h rate limiting), personal wallets for user-funded transfers. Provides WebSocket relay for P2P messaging.
+*   **IOTA Mainnet**: Protocol 26 accessed via public API endpoint `https://api.mainnet.iota.cafe`. All identity data lives on-chain as Move objects.
 
 ### 3.1. W3C DID Implementation
 
@@ -144,7 +144,7 @@ wot.id Application (extends with trust network)
 - Stores DID string in Move contracts (`wot_identity_registry.move`, `wot_identity.move`)
 - Stores secondary identifier→DID mappings (email → DID, phone → DID)
 - Stores atomic data VALUES with trust scores in profile objects
-- Executes transactions via IOTA CLI with iota-sdk v1.21.1 types
+- Executes transactions via IOTA CLI (no Rust SDK Cargo dep — vestigial `iota-sdk = "1.21.1"` removed 2026-05-26, Open-Issues #12 closed)
 - **Status:** ✅ Production deployed and operational
 
 **W3C Compliance:**
@@ -196,6 +196,7 @@ wot.id Application (extends with trust network)
   - Used for login convenience (OAuth, SMS)
 
 **Authentication Flow:**
+
 ```
 1. User clicks "Sign in with Google" (OAuth)
 2. Frontend obtains email from Google
@@ -215,13 +216,15 @@ wot.id Application (extends with trust network)
 
 ### 3.3. Data Storage Architecture
 
-**100% On-Chain Data VALUES:**
+**wot.id Stores VALUES, Not Files.** The architectural principle that frames this entire section: wot.id manages **VALUES** extracted from documents the user already has. The source documents themselves stay on the user's own device or in their own cloud — wot.id is not a file storage provider. What lives on chain is what was *extracted*; what lives off chain is the *source* the extraction came from. The same client-side encryption key (derived from the user's BIP-39 mnemonic) binds the two together. See `docs/01_Project_Overview_And_Principles.md` Principle #4 + `docs/Claude_Primer.md` §17.
 
-All identity data VALUES are stored on IOTA Rebased mainnet using Move smart contracts:
+**100% On-Chain VALUES:**
+
+All identity data VALUES are stored on IOTA Rebased mainnet using Move smart contracts (encrypted client-side with the user's mnemonic-derived keys; wot.id servers never see plaintext):
 
 - ✅ **W3C DIDs**: `did:iota:mainnet:...` (primary identifiers)
 - ✅ **Secondary Identifier Mappings**: Generic (type, value) → DID registry in `identity_registry.move`
-- ✅ **Atomic Data VALUES**: `birth_date: "1990-01-01"`, `blood_type: "O+"`, `ldl_cholesterol: "31 mg/dl"`
+- ✅ **Atomic Data VALUES**: `birth_date: "1990-01-01"`, `blood_type: "O+"`, `ldl_cholesterol: "31 mg/dl"` — extracted by the user from their own ID documents / lab reports / etc.
 - ✅ **Trust Scores per VALUE**: Each VALUE has -100 to +100 score based on attestations
 - ✅ **Claims & Attestations**: Who verified each VALUE, when, with what authority
 - ✅ **Profile Metadata**: Controller address, timestamps, update history
@@ -229,14 +232,18 @@ All identity data VALUES are stored on IOTA Rebased mainnet using Move smart con
 **No Traditional Database:**
 - ❌ No SQL, NoSQL, Redis, or centralized database
 - ❌ Backend is stateless query layer (only uses IOTA CLI)
-- ✅ Blockchain is single source of truth
+- ✅ Blockchain is single source of truth for the VALUES
 - ✅ Fully decentralized architecture
 
-**Optional Off-Chain (Supporting Files Only):**
-- 📄 Document FILES: PDF scans, images (e.g., `passport.pdf`, `lab_report.pdf`)
-- 🔐 On-chain stores SHA-256 hash for verification
-- ⚠️ Not displayed on ME page (VALUES are displayed)
-- ⚠️ Not required (system works without any off-chain files)
+**Off-Chain (the user's source documents — always; the user's choice):**
+- 📂 The source documents themselves — PDFs, scans, photos, CSVs — live on the user's own device or in their own cloud (Dropbox, iCloud, Google Drive, NAS, etc.). wot.id never holds these as primary storage.
+- 🔐 The encryption key that protects the on-chain VALUES is the *same* key that the user uses to encrypt/decrypt those source documents if they choose to also encrypt them. That's what makes the off-chain-source / on-chain-VALUES split coherent.
+
+**Encrypted Files (the edge case — a separate kind of surface):**
+- 📁 `wot_files::FileVault` Move-side, "Encrypted Files" UI-side: a **catalog of files the user has chosen to link to their wot.id identity**. Separate from the atomic-value surfaces; not auxiliary to them.
+- 🔗 A linked file might correspond to a source document the user *also* extracted atomic values from (e.g. the same passport scan that fed `first_name`/`DOB`/`passport_no` into the Identity Section above) — or it might be a standalone file with no extracted values (novel, contract, photo, recording, anything). Independent decisions.
+- 🗂️ Per-file on-chain record: filename, MIME type, size, category, `storage_location` (LOCAL=0 / CLOUD=1 / IPFS=2), `storage_ref` pointer, SHA-256 hash, encrypted DEK. The ciphertext blob itself lives wherever the user chose — Mac folder via the File System Access API, their own cloud, IPFS, etc. — and is **never** held by wot.id.
+- ✅ Use cases: identity-linked file inventory, verifiable proof of authorship/possession, controlled sharing (re-wrap the DEK for a recipient), cross-device recovery of the catalog. wot.id is the file's *catalog and access-control layer*, not the file's home.
 
 ## 4. On-Chain Architecture: Identity Registry
 
@@ -248,15 +255,15 @@ The `wot.id` platform stores all identity data directly on IOTA mainnet using Mo
 
 *   **Profile Objects**: Individual identity profiles (`wot_identity.move`) stored as owned Move objects containing claims, trust scores, and metadata. Each profile is controlled by its owner address.
 
-### 4.1. Hybrid Transaction Execution: CLI + SDK Types
+### 4.1. CLI-Only Transaction Execution
 
-The `Backend API` uses a hybrid approach for IOTA blockchain interactions:
+The `Backend API` shells out to the `iota` CLI for every IOTA blockchain interaction. There is no Rust `iota-sdk` Cargo dep in the workspace — that dep was vestigial (it had been kept around for `ObjectID` / `IotaAddress` / `TransactionData` type aliases) and was removed on 2026-05-26 (Open-Issues #12 closed; `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`). Handlers now wrap CLI output in their own structs.
 
 **Architecture:**
 - **Transaction Execution:** IOTA CLI commands for PTB construction and submission
-- **Type Definitions:** iota-sdk v1.21.1 for Rust type safety (ObjectID, IotaAddress, TransactionData)
-- **Rationale:** CLI provides stability, SDK types provide type safety
-- **IOTA Framework:** v1.21.1 (Protocol 24 mainnet, Starfish consensus)
+- **Type Definitions:** None imported from `iota-sdk` — handlers parse the CLI's `--json` output into local structs (e.g. `extract_trust_profile_id_from_object_changes` in `trust_profile.rs`).
+- **Rationale:** CLI is the only IOTA-Rebased-stable interface; pinning a Rust SDK version against a moving Protocol target proved more painful than it saved.
+- **IOTA Framework:** v1.23.2 (bumped from v1.21.1 in v11; Protocol 26 mainnet, Starfish consensus)
 
 ```bash
 # Example: Register email → DID mapping
@@ -267,15 +274,14 @@ iota client ptb --gas-budget 10000000 \
 ```
 
 **Build Performance:**
-- Current: ~27-30 minutes (Cargo build with iota-sdk types)
-- Dependency: iota-sdk v1.21.1 for type definitions only (Protocol 24 mainnet compatible (Starfish consensus))
-- Trade-off: Type safety (fast iteration) vs pure CLI (faster builds)
+- Current: **~5 minutes** for app-code-only deploys — Docker reuses the cached dependency-build layer, so only the application code recompiles (~60 s). **~10–15 minutes** when `Cargo.toml`/`Cargo.lock` change. The earlier 30–40-minute Cargo.lock window applied before 2026-05-26, when `iota-sdk` pulled the upstream `iotaledger/iota` workspace transitively even with `default-features = false`. (See `Claude_Primer.md` §11.)
+- Trade-off: CLI subprocess overhead per call (~25–50 ms) vs the previous build-time and binary-size cost of carrying the full SDK.
 
-**Benefits of Hybrid Approach:**
-- ✅ Rust type safety via iota-sdk types
-- ✅ Stable CLI interface for mainnet transactions
-- ✅ Avoids full SDK transaction builder complexity
-- ✅ Direct access to mainnet functionality
+**Benefits of CLI-Only Approach:**
+- ✅ Stable interface — CLI v1.23.2 tracks Protocol 26 exactly
+- ✅ No `[patch.crates-io]` strategy needed
+- ✅ ~10× faster cold-build dependency layer (no iota-* transitive crates)
+- ✅ Smaller binary (~14 MB vs ~15 MB pre-2026-05-26)
 
 ## 5. Architectural Diagrams
 
@@ -291,7 +297,7 @@ graph TD
     end
 
     subgraph "IOTA Infrastructure"
-        IOTA_CLI[IOTA CLI v1.21.1] --> IOTA_Node((IOTA Mainnet<br/>Protocol 24))
+        IOTA_CLI[IOTA CLI v1.23.2] --> IOTA_Node((IOTA Mainnet<br/>Protocol 26))
         IOTA_Node --> Move_Contracts([Identity Registry + Move Contracts v7])
     end
 
@@ -425,30 +431,29 @@ sequenceDiagram
 ```
 
 **Key Implementation Details (Nov 19, 2025):**
-- ✅ **Deployed Package** (contains `wot_identity`, `wot_identity_registry`, `wot_trust`, `file_vault`, `mailbox` modules): `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8 contract on mainnet, environment variable `IOTA_REGISTRY_PACKAGE_ID`)
+- ✅ **Deployed Package** (contains `wot_identity`, `wot_identity_registry`, `wot_trust`, `file_vault`, `mailbox` modules): `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299` (v11 contract on mainnet, May 23, 2026; environment variable `IOTA_REGISTRY_PACKAGE_ID`). The v11 release is a Move-layer cleanup (V11-1…V11-14, hardened attestation auth v2, typed governance v2, real trust aggregates, plus 9 body-only fixes); supersedes v10 `0xdfea0e92…`. See `docs/2026_Code_Work/26-05-17_SC_V10_Upgrade.md`.
 - ✅ **Privacy-Preserving**: Stores SHA3-256 hash instead of plaintext on-chain
 - ✅ **Gas Sponsored**: Backend pays gas for attestation transactions
 - ✅ **Public Verification**: Attestations visible on explorer.rebased.iota.org (the post-Rebased mainnet explorer; `explorer.iota.org` redirects to the legacy Stardust archive — see `Claude_Primer.md` Rule 10)
 - ✅ **First Production TX**: `4Uz9SxQv6gMyd21wwvZhZ4ZJ5KVsAAo4ia46SbHadWDf`
 
-## 6. On-Chain Interaction Model: CLI-Based PTBs with SDK Types
+## 6. On-Chain Interaction Model: CLI-Based PTBs
 
-All state-changing interactions with the IOTA ledger are executed via **Programmable Transaction Blocks (PTBs)**. The `Backend API` uses a **hybrid approach**:
+All state-changing interactions with the IOTA ledger are executed via **Programmable Transaction Blocks (PTBs)** constructed by shelling out to the `iota` CLI.
 
-**Hybrid Architecture:**
+**Architecture:**
 - **PTB Execution:** IOTA CLI commands construct and submit transactions
-- **Type Definitions:** iota-sdk v1.21.1 provides Rust types (ObjectID, IotaAddress, TransactionData)
-- **No SDK Transaction Builder:** Avoids complex SDK transaction construction APIs
+- **Type Definitions:** None imported from `iota-sdk` (the Rust Cargo dep was removed on 2026-05-26 — Open-Issues #12 closed; see `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`). Handlers parse the CLI's `--json` output into local structs.
+- **No SDK Transaction Builder:** All PTBs are assembled as CLI arg strings.
 
 **Benefits:**
-- ✅ CLI stability for mainnet transactions
-- ✅ Rust type safety via iota-sdk types
+- ✅ CLI stability for mainnet transactions — CLI v1.23.2 tracks Protocol 26 exactly
+- ✅ No `[patch.crates-io]` strategy / no version-skew risk against a moving Protocol
 - ✅ Direct mainnet access via `https://api.mainnet.iota.cafe`
 - ✅ Gas station pattern: Backend sponsors user transactions with 24-hour rate limiting
 
 **Build Performance:**
-- Current: ~27-30 minutes with iota-sdk v1.21.1 types
-- Trade-off: Type safety and code quality over pure build speed
+- Current: ~5 minutes for app-code-only deploys (cached dependency layer); ~10–15 minutes on a dependency change. The earlier 30–40-minute window applied before 2026-05-26 when the `iota-sdk` dep dragged the upstream IOTA workspace through Cargo. See `Claude_Primer.md` §11.
 
 PTBs are powerful constructs that allow for bundling multiple atomic operations into a single transaction. This is crucial for complex workflows like creating a trust relationship or issuing a verifiable credential.
 
@@ -475,13 +480,14 @@ This approach ensures that all on-chain interactions are robust, efficient, and 
 
 ### 7.2. Environment Variables
 
-The system is configured via environment variables:
+The system is configured via environment variables. Since 2026-05-26 the read accessors are consolidated in `backend/src/config.rs` (`iota_cli_path()`, `iota_rpc_url()`, `iota_explorer_base()`, `gas_budget_write()`, and the `cors_origin_allowed(&str) -> bool` predicate), with the 38 `require_env(...)` call sites in `main.rs` still enforcing the required ones. See `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`.
 
 - `PORT=10000`: Port for the Backend API (Render default).
-- `IOTA_NODE_URL=https://api.mainnet.iota.cafe`: IOTA mainnet RPC endpoint.
+- `IOTA_RPC_URL=https://api.mainnet.iota.cafe` *(new, preferred)*: JSON-RPC endpoint, read first by `config::iota_rpc_url()`. Falls back to `IOTA_NODE_URL`, then to the compiled-in mainnet default.
+- `IOTA_NODE_URL=https://api.mainnet.iota.cafe` *(legacy alias)*: Same endpoint; existing deploys remain unchanged. `deploy.sh` default was changed `api.testnet.shimmer.network` → `api.mainnet.iota.cafe` on 2026-05-26 (Open-Issues #14 closed).
 - `IOTA_PRIVATE_KEY`: Ed25519 private key for Backend's IOTA keystore.
 - `JWT_SECRET_KEY`: HS256 secret for JWT generation and validation.
-- `IOTA_REGISTRY_PACKAGE_ID=0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302`: Identity registry package (January 9, 2026 v7 with FileVault)
+- `IOTA_REGISTRY_PACKAGE_ID=0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299`: Identity registry package (v11, May 23, 2026 — Move-layer cleanup release (V11-1…V11-14); supersedes v10 `0xdfea0e92…` (which added `create_identity_entry` for user-signed identity creation) of May 17, 2026, v9 `0x4a71c629…` of May 8, 2026, and earlier)
 - `IOTA_REGISTRY_OBJECT_ID=0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92`: Shared registry object
 - `RATE_LIMIT_HOURS=24`: Gas station rate limiting (prevents abuse)
 - `DEFAULT_GAS_BUDGET=1000000000`: Gas budget for Move contract transactions.
@@ -507,7 +513,7 @@ For production deployment (e.g., Render), use public IOTA mainnet endpoints:
 
 ## 9. References
 
-*   **IOTA Node**: [IOTA GitHub](https://github.com/iotaledger/iota) (Protocol 24 Mainnet, Starfish consensus)
+*   **IOTA Node**: [IOTA GitHub](https://github.com/iotaledger/iota) (Protocol 26 Mainnet, Starfish consensus)
 *   **IOTA CLI**: [IOTA CLI Documentation](https://docs.iota.org/references/cli/client)
 *   **IOTA Move Contracts**: [Move Documentation](https://docs.iota.org/developer/iota-101/move)
 *   **IOTA Identity SDK (Rust)**: [identity.rs GitHub](https://github.com/iotaledger/identity.rs)
@@ -536,17 +542,34 @@ The security implementation follows a **layered defense strategy** with multiple
 
 #### ✅ Implemented: Hybrid X25519 + ML-KEM-768 Encryption
 
-**Library**: pqc.js (Dashlane) - production-grade WebAssembly implementation
+**Library**: `@noble/post-quantum` v0.6.1 — audited TypeScript implementation of FIPS 203 ML-KEM-768. Replaced `@dashlane/pqc-kem-kyber768-browser` (WebAssembly) on 2026-05-26 because the Dashlane wrapper exposed no deterministic-keygen API; that block kept the ML-KEM half of the hybrid keypair CSPRNG-derived and therefore unrecoverable from the BIP-39 mnemonic. The noble library exposes the FIPS-203 `KeyGen_internal(d || z)` entry point, which lets us derive the ML-KEM keypair deterministically from a 64-byte seed. See `docs/2026_Code_Work/26-05-26_PQ_Cryptography.md` and `docs/2026_Code_Work/26-05-26_ML_KEM_Determinism_Plan.md`.
+
+**Determinism (Open-Issues #9, closed 2026-05-26)**: the ML-KEM-768 keypair is now derived deterministically from the user's BIP-39 mnemonic via:
+
+```
+mnemonic → BIP-39 seed → X25519 private key
+                       ↓
+                       HKDF-SHA256(ikm = x25519_private_key,
+                                   salt = b"wot.id/mlkem-768/v1",
+                                   info = b"",
+                                   L = 64)  → 64-byte (d || z) seed
+                       ↓
+                       @noble/post-quantum.ml_kem_768.keygen(seed)
+                       → (mlkem_public_key, mlkem_private_key)
+```
+
+The HKDF salt `wot.id/mlkem-768/v1` is **FOREVER-FIXED** — any change permanently breaks past disclosure-shares-received. Canonical test vector (mnemonic `legal winner thank year wave sausage worth useful legal winner thank yellow`) BLAKE3-hashes the resulting `mlkem_public_key` to `95aa4ac2c5b69b8180e8e6e40735c6cd5bc446ffab2a4e7b113692c79eef699d`; pinned in `frontend/src/lib/crypto/mlkem-derivation.test.ts`. The frontend autoUnlock path byte-compares on-chain vs locally-derived `mlkem_pubkey` and republishes on mismatch, with a per-DID `MlKemMigrationNotice` banner that explains pre-migration disclosure-shares-received are unrecoverable.
 
 **Algorithm Stack**:
 | Layer | Algorithm | Purpose |
 |-------|-----------|---------|
 | Key Exchange | X25519 + ML-KEM-768 | Hybrid key encapsulation (defense in depth) |
 | Symmetric | ChaCha20-Poly1305 | Authenticated encryption of data |
-| Key Derivation | BLAKE3 + HKDF | Secure key derivation from mnemonic |
-| Recovery | BIP-39 | 24-word mnemonic for key backup |
+| Key Derivation | BLAKE3 + HKDF-SHA256 | BIP-39 → seed → X25519 + ML-KEM-768 derivation |
+| Recovery | BIP-39 | 24-word mnemonic for key backup — recovers BOTH X25519 and ML-KEM-768 keypairs since 2026-05-26 |
 
 **Architecture**:
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  USER KEY HIERARCHY (Client-Side Only)                         │
@@ -577,6 +600,7 @@ The security implementation follows a **layered defense strategy** with multiple
 | P2P messages | 🔄 Planned (Phase D) | Mailbox with encrypted payload |
 
 **On-Chain Structs** (Smart Contract v6 - December 30, 2025):
+
 ```move
 /// Generic encrypted field - used for ANY sensitive data
 public struct EncryptedField has store, drop, copy {
@@ -624,6 +648,7 @@ public struct EncryptedClaim has store, drop {
 #### Complete Encryption/Decryption Round-Trip
 
 **Save Path (Frontend → Backend → Chain)**:
+
 ```
 1. User enters value (e.g., "John" in First Name)
 2. Frontend: fieldId = "identity.first_name" (stable ID)
@@ -635,6 +660,7 @@ public struct EncryptedClaim has store, drop {
 ```
 
 **Fetch Path (Chain → Backend → Frontend)**:
+
 ```
 1. Frontend: GET /api/identity/me
 2. Backend: Fetches profile from IOTA
@@ -650,6 +676,7 @@ public struct EncryptedClaim has store, drop {
 ```
 
 **Critical: Stable fieldId Requirement**:
+
 ```typescript
 // ✅ Correct: Stable fieldId (same for encrypt AND decrypt)
 const fieldId = `identity.${fieldName}`;  // e.g., "identity.first_name"
@@ -659,6 +686,7 @@ const fieldId = `identity.${fieldName}.${Date.now()}`;
 ```
 
 **Serialized Encrypted Field Format (API)**:
+
 ```typescript
 interface SerializedEncryptedField {
   v: number;  // Version (1)
@@ -669,6 +697,7 @@ interface SerializedEncryptedField {
 ```
 
 **Frontend Decryption Helper** (`IdentitySection.tsx`):
+
 ```typescript
 const getDecryptedValue = useCallback((
   fieldName: string,
@@ -710,8 +739,8 @@ The PQC encryption stack has been verified operational in production:
 
 | Component | Verification | Evidence |
 |-----------|-------------|----------|
-| **ML-KEM-768 Provider** | pqc.js active | Console: `[ML-KEM] Using pqc.js ML-KEM-768 (post-quantum secure)` |
-| **Mnemonic Recovery** | DEK derived correctly | Console: `Encryption restored from mnemonic` |
+| **ML-KEM-768 Provider** | `@noble/post-quantum` active (since 2026-05-26; previously `@dashlane/pqc-kem-kyber768-browser` Dec 2025 – May 2026) | Console: `[ML-KEM] Using @noble/post-quantum ml_kem_768 (post-quantum secure, deterministic-keygen)` |
+| **Mnemonic Recovery** | DEK derived correctly; ML-KEM keypair also deterministic from mnemonic since 2026-05-26 | Console: `Encryption restored from mnemonic` |
 | **Field Encryption** | ChaCha20-Poly1305 | On-chain: `{"_enc":{"v":1,"s":1,"n":"...","c":"..."}}` |
 | **Field Decryption** | No auth tag errors | Console: `Decrypted first_name successfully` |
 | **On-chain Storage** | Encrypted JSON | Backend logs show `_enc` format |
@@ -740,6 +769,7 @@ See `docs/2025_Code_Work/25-12-29_PQC_Stack_Functional.md` for detailed verifica
 - **✅ Structured Errors**: `ApiError` types with HTTP status mapping and request ID tracking
 
 #### ✅ Current Endpoints (Authentication Status)
+
 ```bash
 # Public endpoints (No authentication required)
 curl http://localhost:8080/health
@@ -762,6 +792,7 @@ curl http://localhost:8080/iota/test
 **Status**: 📋 **DESIGNED BUT NOT TESTED** - Proposal-based governance system in contracts, not yet validated in production.
 
 **Governance Endpoints**:
+
 ```bash
 # Proposal-based governance
 POST /api/proposals/create     # Create trust proposals
@@ -789,12 +820,15 @@ GET  /api/proposals/:id/status # Get proposal status
 - **Automatic Cleanup**: Will remove expired client entries
 
 #### Planned Configuration
+
 ```bash
 RATE_LIMIT_ENABLED=true
 RATE_LIMIT_MAX_REQUESTS=100    # Requests per window
 RATE_LIMIT_WINDOW_SECONDS=60   # Window duration
 ```
+
 X-RateLimit-Reset: 1642694400
+
 ```
 
 ### 10.5. Input Validation
@@ -869,6 +903,7 @@ The system implements a hybrid approach combining W3C DID standards with wot.id 
 - **Move Contract Ready**: Prepared for blockchain-based trust and credential systems
 
 #### ✅ API Endpoints
+
 ```bash
 # Create W3C DID
 POST /api/identity
@@ -885,12 +920,22 @@ GET /api/identity/{did}
 
 ### 10.7. Middleware Architecture
 
-**Current Status:** ✅ **IMPLEMENTED LOCALLY** - Middleware stack with JWT authentication, CORS, and security layers working in local development.
+**Current Status:** ✅ **PRODUCTION** - Middleware stack with JWT authentication, host-allowlist CORS, and security layers.
 
-⚠️ **Production Status:** Legacy deployment contains outdated middleware from earlier architecture.
+Since 2026-05-26 the CORS layer is a host-allowlist predicate (`config::cors_origin_allowed`), not `AllowOrigin::Any` (Open-Issues #20 code half — closed; the dashboard half — removing `WALLET_ENCRYPTION_KEY` from Render env — is still owed). Allow-list covers `wot.id`, `[www.wot.id](https://www.wot.id)`, `wot-id.vercel.app`, current Vercel preview hosts (`wot-id-*.vercel.app`), and `localhost:300{0,3}`. See `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`.
 
 **Current Implementation:**
+
 ```rust
+let cors = CorsLayer::new()
+    .allow_origin(AllowOrigin::predicate(|origin, _req| {
+        origin.to_str()
+            .map(|o| config::cors_origin_allowed(o))
+            .unwrap_or(false)
+    }))
+    .allow_methods(Any)
+    .allow_headers(Any);
+
 let app = Router::new()
     .route("/health", get(health_check))
     .route("/iota/test", get(iota_connection_test))
@@ -902,6 +947,7 @@ let app = Router::new()
 **Middleware Stack Architecture:** Security is implemented as layered middleware:
 
 #### Planned Middleware Stack (Inside to Outside)
+
 ```rust
 ServiceBuilder::new()
     .layer(TraceLayer::new_for_http())     // 4. Request logging
@@ -954,6 +1000,7 @@ sequenceDiagram
 #### Endpoint Specification
 
 **Request**:
+
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -964,6 +1011,7 @@ Content-Type: application/json
 ```
 
 **Response**:
+
 ```json
 {
   "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
@@ -973,6 +1021,7 @@ Content-Type: application/json
 ```
 
 **Error Response** (401):
+
 ```json
 {
   "error": "Unauthorized",
@@ -1072,6 +1121,7 @@ useEffect(() => {
 #### Debugging Tips
 
 **Check Token Exchange**:
+
 ```bash
 curl -X POST http://localhost:8080/api/auth/exchange \
   -H "Content-Type: application/json" \
@@ -1079,19 +1129,34 @@ curl -X POST http://localhost:8080/api/auth/exchange \
 ```
 
 **Decode JWT** (jwt.io or command line):
+
 ```bash
 echo "JWT_TOKEN" | cut -d. -f2 | base64 -d | jq
 ```
 
 **Verify Backend Logs**:
+
 ```
 ✅ Token exchange successful for: user@example.com
 ✅ JWT generated with exp: 1729339200
 ```
 
+#### Session-policy summary
+
+Two OAuth/JWT sessions run in parallel with independent timing. A third (encryption) is entirely separate and documented elsewhere — don't conflate them.
+
+| Layer | TTL | Notes |
+|---|---|---|
+| NextAuth session cookie (`__Secure-next-auth.session-token`) | **7 days** `maxAge`, **1 h** sliding `updateAge` | Set in `frontend/src/lib/auth-config.ts` `session` block. Pre-2026-05-17 was NextAuth's 30-day default. |
+| Backend JWT (`localStorage[wot_id_jwt_token]`) | 24 h | Silent refresh in `frontend/src/app/me/page.tsx` `isJwtExpiredOrExpiring()`. Cleared on sign-out via `signOutClean()` (`frontend/src/lib/auth-helpers.ts`). |
+| Encryption session — separate lifecycle | 30 min in-memory cache; IDB-backed keys; `hasBackup` flag (currently localStorage, IDB migration in flight per `docs/2026_Code_Work/26-05-17_Timing_Backlog_Implementation.md` §2.4) | See `docs/2026_Code_Work/26-05-15_Timing_Issues.md` §1 for the two-sessions mental model. |
+
+Diagnostic + policy rationale: `docs/2026_Code_Work/26-05-15_Timing_Issues.md` §4. Implementation history: `docs/2026_Code_Work/26-05-17_Timing_Backlog_Implementation.md` (F5 = NextAuth `maxAge`; F7 = `signOutClean()` helper; F8 = this subsection).
+
 ### 10.8. Security Configuration
 
 #### Environment Variables
+
 ```bash
 # Security toggles
 REQUIRE_AUTH=true                    # Enable/disable authentication
@@ -1111,6 +1176,7 @@ RUST_LOG=info                       # Log level (debug/info/warn/error)
 #### Development vs Production
 
 **Development Mode:**
+
 ```bash
 REQUIRE_AUTH=false          # No authentication required
 RATE_LIMIT_ENABLED=false    # No rate limiting
@@ -1118,6 +1184,7 @@ RUST_LOG=debug              # Verbose logging
 ```
 
 **Production Mode:**
+
 ```bash
 REQUIRE_AUTH=true           # Authentication required
 RATE_LIMIT_ENABLED=true     # Rate limiting enabled
@@ -1248,14 +1315,14 @@ The frontend security hardening provides comprehensive client-side protection th
 - 24-hour rate limiting per DID prevents abuse
 - JWT authentication on all identity operations
 
-### 11.2. ✅ IOTA Protocol 24 Mainnet Deployment
+### 11.2. ✅ IOTA Protocol 26 Mainnet Deployment
 
-**Current Infrastructure**: System deployed on IOTA Rebased mainnet, Protocol 24 (Starfish consensus). Backend binary built against `iota-sdk v1.21.1` (verified via Cargo.lock + production startup log line on 2026-05-05T11:07Z; see `docs/2026_Code_Work/26-05-05_SDK_Upgrade_Verified.md`).
+**Current Infrastructure**: System deployed on IOTA Rebased mainnet, Protocol 26 (Starfish consensus). Backend talks to mainnet via the `iota` CLI v1.23.2 — the Rust `iota-sdk` Cargo dep was removed on 2026-05-26 (Open-Issues #12 closed; see `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`). First Protocol 24 production deploy was verified 2026-05-05T11:07Z (`docs/2026_Code_Work/26-05-05_SDK_Upgrade_Verified.md`); the 24 → 26 alignment is the 2026-05-21 work (`docs/2026_Code_Work/26-05-21_CLI_Upgrade.md`).
 
 **Deployment Status**:
-- ✅ **IOTA Mainnet**: Protocol 24 (accessed via `https://api.mainnet.iota.cafe`)
-- ✅ **Backend API**: CLI-based PTBs + iota-sdk v1.21.1 types + integrated DID generation (Ed25519 + BLAKE3)
-- ✅ **Move Contracts**: Deployed to mainnet v7/v8 (wot_identity_registry, wot_identity, FileVault, wot_trust)
+- ✅ **IOTA Mainnet**: Protocol 26 (accessed via `https://api.mainnet.iota.cafe`)
+- ✅ **Backend API**: CLI-based PTBs + integrated DID generation (Ed25519 + BLAKE3); no Rust IOTA SDK dep
+- ✅ **Move Contracts**: Deployed to mainnet v11 (wot_identity_registry, wot_identity, FileVault, wot_trust — see `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md`)
 - ✅ **OAuth Integration**: Google, GitHub, Apple operational
 
 ### 11.3. ✅ Operational Status
@@ -1263,7 +1330,7 @@ The frontend security hardening provides comprehensive client-side protection th
 **Production Services**:
 - **Frontend**: https://wot.id (Next.js on Vercel)
 - **Backend API**: https://wot-id-backend.onrender.com (Rust/Axum, integrated DID generation)
-- **IOTA Mainnet**: Protocol 24 via `https://api.mainnet.iota.cafe`
+- **IOTA Mainnet**: Protocol 26 via `https://api.mainnet.iota.cafe`
 
 **Development Ports (Local)**:
 - Backend API: Port 10000
@@ -1275,7 +1342,7 @@ The frontend security hardening provides comprehensive client-side protection th
 - ✅ Gas station pattern (backend-sponsored transactions)
 - ✅ QR code generation and scanning
 - ✅ On-chain attestations operational (`wot_trust.move`)
-- ✅ Post-quantum encryption (X25519 + ML-KEM-768)
+- ✅ Post-quantum encryption (X25519 + ML-KEM-768) — both halves deterministic from BIP-39 mnemonic since 2026-05-26
 - ✅ W3C DID Core 1.0 compliant
 - ✅ Real mainnet transactions confirmed
 - ✅ JWT authentication working end-to-end
@@ -1283,7 +1350,7 @@ The frontend security hardening provides comprehensive client-side protection th
 ### 11.4. Architecture Benefits Realized
 
 **CLI-Only Approach Advantages**:
-- **95% Build Time Improvement**: From 70 minutes to ~5 minutes
+- **Fast Incremental Builds**: ~5 minutes for app-code-only deploys via Docker dependency-layer caching; ~10–15 minutes when `Cargo.toml`/`Cargo.lock` change (the prior 30–40-minute window was driven by the `iota-sdk` transitive workspace and disappeared on 2026-05-26 when the dep was removed). See `Claude_Primer.md` §11.
 - **Simplified Dependencies**: No complex SDK version conflicts
 - **Enhanced Reliability**: Proven stable in production
 - **Direct Mainnet Access**: No intermediate layers required
@@ -1297,7 +1364,7 @@ The frontend security hardening provides comprehensive client-side protection th
 
 ## 12. Future Considerations
 
-The current architecture represents a mature, production-ready system on Protocol 24 / iota-sdk v1.21.1. The Identity Service was retired in March 2026 after the dependency isolation rationale no longer applied.
+The current architecture represents a mature, production-ready system on Protocol 26 (CLI v1.23.2; no Rust SDK Cargo dep since 2026-05-26 per Open-Issues #12). The Identity Service was retired in March 2026 after the dependency isolation rationale no longer applied.
 
 **Upcoming Opportunities**:
 - **Protocol 23**: Monitor for breaking changes and migration timelines

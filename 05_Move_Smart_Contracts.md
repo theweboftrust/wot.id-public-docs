@@ -4,22 +4,38 @@
 
 ### **✅ IDENTITY REGISTRY, ATTESTATION, FILE VAULT & UNIFIED ATOM STORAGE**
 - **Identity Registry**: Decentralized DID → Profile ID mapping with flexible identifiers
-- **wot_id Package ID**: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` **(v8 deployed March 11, 2026; on-chain version 4)**
-- **Registry Object ID**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (shared object — preserved across the v7 → v8 upgrade)
+- **wot_id Package ID**: `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299` **(v11 deployed May 23, 2026; on-chain version 7)**
+- **Registry Object ID**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (shared object — preserved across the v7 → v8 → v9 → v10 → v11 upgrades)
 - **UpgradeCap**: `0x36f57406ec2957b4d2d8309a417122e614469b65ddcfc299d8501bfc1472d7ea` (secured in cold wallet)
-- **Deployment history**: v7 Jan 9, 2026 (`0xa389f9b55c…`) → **v8 Mar 11, 2026** (`0x14b1e852…`) via UpgradeCap; v8 is additive (legacy v7 entry points preserved). See `docs/2026_Code_Work/26-03-11_SC_Upgrade.md`.
-- **Protocol**: IOTA mainnet Protocol 24 (Starfish consensus; backend SDK upgraded to v1.21.1 May 5, 2026)
-- **Framework**: Move contracts v1.21.1 (edition 2024)
+- **Deployment history**: v7 Jan 9, 2026 (`0xa389f9b55c…`) → **v8 Mar 11, 2026** (`0x14b1e852…`) → **v9 May 8, 2026** (`0x4a71c629…`) → **v10 May 17, 2026** (`0xdfea0e92…`) → **v11 May 23, 2026** (`0x40e24bdddd…`) via UpgradeCap. v8 added unified `EncryptedAtom` + `store_atom()`. v9 cleans up the privacy-level constants (drops `PRIVACY_TRUSTED_CONTACTS = 1` and `PRIVACY_TEMPORARY_ACCESS = 4`; write paths now reject those values with `E_DEPRECATED_PRIVACY_LEVEL`). v10 adds the `create_identity_entry` entry wrapper for user-signed identity creation; storage and existing function signatures unchanged. v11 is a Move-layer cleanup release (V11-1…V11-14: hardened attestation auth via `create_attestation_v2`, typed governance via `TrustProposalV2` + v2 entry trio, real trust aggregates via `AtomTrustAggregate` / `ProfileTrustAggregate` maintained by `link_attestation`, plus 9 body-only fixes — constant-key bugs, `total_claims` counter, FileVault event prefixes, etc.) and bumps the framework rev v1.21.1 → v1.23.2. v9, v10 and v11 are storage-compatible with v8; legacy on-chain rows at level 1 or 4 remain readable by their owner. See `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md`, `docs/2026_Code_Work/26-05-17_SC_V10_Upgrade.md`, `docs/2026_Code_Work/26-05-08_SC_Upgrade.md`, and `docs/2026_Code_Work/26-03-11_SC_Upgrade.md`.
+- **Protocol**: IOTA mainnet Protocol 26 (Starfish consensus; CLI upgraded v1.21.1 → v1.23.2 on 2026-05-21 per `docs/2026_Code_Work/26-05-21_CLI_Upgrade.md`)
+- **Framework**: Move contracts built against `iota.git rev = v1.23.2` (edition 2024) — bumped from v1.21.1 in v11
 - **Gas Station**: Backend sponsors transactions with 24-hour rate limiting
 
-### **🎯 Deployed Modules (v8 Operational)**
+### **🎯 Deployed Modules (v11 Operational)**
+
+> **Framing reminder — wot.id stores VALUES, not files.** The four primary modules (`wot_identity_registry`, `wot_identity`, `wot_trust`, `mailbox`) store **encrypted VALUES** that the user extracted from their own off-chain source documents (PDFs, scans, CSVs, etc.). The source documents stay on the user's device or cloud; wot.id is not a file-storage provider. The fifth module — `file_vault` — is a *separate kind of surface*: a catalog of **files the user has chosen to link to their wot.id identity**, regardless of whether atomic values were also extracted from them. The file's ciphertext stays wherever the user keeps it; the Move object holds only the encrypted DEK + metadata + a `storage_location` / `storage_ref` pointer. See `docs/01_Project_Overview_And_Principles.md` Principle #4 + `docs/Claude_Primer.md` §17 for the principle, and `docs/09_Data_Storage_And_Asset_Management.md` §1 for the worked examples.
+
 - **`wot_identity_registry`**: Shared registry for flexible identifier system (email, phone, social, etc. → DID)
-- **`wot_identity`**: Identity profiles with unified atom storage — single `EncryptedAtom` struct + `store_atom()` for all 15 atom types (v8), claims via `IdentityClaim`/`EncryptedIdentityClaim`
-- **`wot_trust`**: ✅ **On-chain attestation system (Dec 12, 2025)** - Trust scoring with u64 trust_level, context_uri, and status lifecycle
-- **`file_vault`**: ✅ **(Jan 9, 2026)** - DID-portable encrypted file storage with consent-based sharing
-- **`mailbox`**: Encrypted messaging between DIDs
-- **Integration**: Backend uses hybrid CLI + SDK types approach (CLI for transactions, iota-sdk v1.21.1 for types)
-- **Test Coverage**: ✅ 49 tests passing (October 2025)
+- **`wot_identity`**: Identity profiles with unified atom storage — single `EncryptedAtom` struct + `store_atom()` for all 15 atom types (v8); v9 tightens privacy-level write validation; v11 fixes `link_attestation` / `link_trust_relationship` constant-key bugs, neutralises the broken `batch_store_atomic_data_simple`, implements `update_claim_privacy`, fixes the `total_claims` counter (now incremented on add, not just decremented on delete), fixes `link_trust_profile.updated_at`, adds the `AtomTrustAggregate` / `ProfileTrustAggregate` dynamic-field structs (maintained in `link_attestation`) and replaces the trust-scoring stubs with real implementations, replaces the broken `address_to_string` with `address_to_hex`, and fixes the access-grant constant `"addr"` key.
+- **`wot_trust`**: On-chain attestation + trust system. v11 adds `create_attestation_v2` (attester derived from `tx_context::sender` — hardens against forgery; old `create_attestation` kept for backend compat); adds typed governance via `TrustProposalV2` + `create_trust_proposal_v2` / `vote_on_proposal_v2` / `execute_proposal_v2` (the old `create_trust_proposal` / `vote_on_proposal` / `execute_proposal` are deprecated and abort with `E_DEPRECATED_USE_V2`); adds an authorisation assert to `update_attestation_status`; derives a real nonce in `create_qr_verification_data` (was empty).
+- **`file_vault`**: DID-portable encrypted file storage with consent-based sharing (Jan 9, 2026). v11 fixes the FileVault event-`file_id` prefix bug across all 5 sites (`FileStored`, `FileUpdated`, `FileRemoved`, `ShareAccepted`, and the shared-file remove path).
+- **`mailbox`**: Encrypted messaging between DIDs — sound, no v11 changes; the 2026-05-21 mailbox rework was entirely backend (user-signed `create_mailbox` / `claim_message`, owner-based lookup).
+- **Integration**: Backend uses CLI-only integration (`iota` CLI v1.23.2 — upgraded 2026-05-21). The Rust `iota-sdk` Cargo dep that previously supplied a few type aliases was removed on 2026-05-26 (Open-Issues #12 closed — see `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`); handlers now parse the CLI's `--json` output into local structs.
+- **Test Coverage**: 57 Move tests, 50 passing as of v11 (7 pre-existing failures unrelated to v11 — privacy-level deprecation tests, stale `compute_trust_impact` math, non-existent confidence validation — documented in `docs/2026_Code_Work/26-05-23_Move_V11_Phase_A_Execution.md`); v11 publish gated by the on-chain `compatible` upgrade-policy checker (passed).
+
+### **🚀 Recent Milestones (May 2026)**
+- ✅ **Move v11 — Cleanup release (May 23, 2026)** — `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md` (plan), `docs/2026_Code_Work/26-05-23_Move_V11_Phase_A_Execution.md`, `docs/2026_Code_Work/26-05-23_Move_V11_Phase_B_Execution.md`, `docs/2026_Code_Work/26-05-23_Move_V11_Phase_C_Execution.md`.
+  - Transaction: `Gqzg879xuoM3qAPBVnZA1PoZQFLYKzzCfeuPS5cbsfjT` (epoch 383, checkpoint 145958971, 0.325 IOTA gas).
+  - **15 changes**: 14 catalogued items (V11-1…V11-14) + the source-only `create_identity_for_sender` deletion.
+  - **Hardened attestation auth (V11-5/V11-6)**: `create_attestation_v2` (sender-derived attester); body-only sender assert on `update_attestation_status`.
+  - **Typed governance (V11-8)**: new `TrustProposalV2` struct with typed `change_kind` + `change_value`; new `create/vote/execute_proposal_v2` entry trio; old trio deprecated (aborts).
+  - **Real trust aggregates (V11-13)**: new `AtomTrustAggregate` (per-atom) and `ProfileTrustAggregate` (per-profile with 5-bucket distribution) maintained on every `link_attestation`; the trust-scoring functions (`calculate_atom_trust_score`, `calculate_profile_trust_metrics`, `calculate_trust_metrics`) now return real values instead of placeholders.
+  - **9 body-only fixes**: `generate_access_key` keys by grantee (V11-1; new `address_to_hex` helper), `link_attestation` + `link_trust_relationship` key by their actual id (V11-2/V11-3), `batch_store_atomic_data_simple` neutralised (V11-4), QR nonce derived from object UID (V11-7), `total_claims` counter fixed (V11-9), `update_claim_privacy` implemented (V11-10), `link_trust_profile` timestamp fixed (V11-11), FileVault `file_id` event prefix fixed across all 5 sites (V11-12).
+  - **Framework rev (V11-14)**: `Move.toml` bumped `iota.git rev` v1.21.1 → v1.23.2 to match the deployed CLI and protocol; `Move.lock` regenerated by the ceremony.
+  - **Compatibility**: pure additive — all v10 public function signatures preserved; new structs and entry functions added; no struct layout touched. The on-chain `compatible` upgrade-policy checker passed.
+- ✅ **Selective disclosure write paths fixed (Deploy 2 of 2026-05-21)** — both `create_disclosure` / `revoke_disclosure` backend PTB argument-shape bugs corrected (`disclosure.rs` commit `66a93a5`). Backend-only; no Move change needed. See `docs/2026_Code_Work/26-05-21_Disclosure_Status.md`.
+- ✅ **Mailbox end-to-end (Deploy 2 of 2026-05-21)** — `create_mailbox` + `claim_message` now user-signed (gas-sponsored), all lookups resolve owner-based via `lookup_mailbox_by_owner`. No Move upgrade needed. See `docs/2026_Code_Work/26-05-21_Mailbox_Status.md`.
 
 ### **🚀 Recent Milestones (March 2026)**
 - ✅ **Unified Atom Architecture (v8)** (March 10, 2026)
@@ -53,8 +69,8 @@
 - ✅ **Fixed trust calculations**: Adjusted test trust scores to reach correct reputation levels
 - ✅ **All tests passing**: Complete test suite validated (49/49 tests)
 
-### 🚀 Production Operational (November 2025)
-- **Hybrid CLI + SDK Types**: CLI for PTB submission, iota-sdk v1.21.1 for type definitions
+### 🚀 Production Operational (November 2025 — last refreshed May 2026)
+- **CLI-Only IOTA Integration**: All PTBs submitted via `iota` CLI v1.23.2; the Rust `iota-sdk` Cargo dep was removed on 2026-05-26 (Open-Issues #12 closed)
 - **Event Indexing**: Backend queries `ProfileRegistered` events for lookups
 - **Gas Costs**: ~0.0076 IOTA per profile creation + registration
 - **Security**: UpgradeCap secured in cold wallet `0xffc7f6eb21333ea9fb27ea707bdd5c812292b2408fcb157ad4086c5b86d1db1e`
@@ -182,6 +198,7 @@ Attestation Structure:
 4. **Display on ME Page**: VALUES with higher trust scores shown with visual indicators
 
 **Example: Lab Result with Trust Score**
+
 ```
 ldl_cholesterol: {
   value: "31 mg/dl",
@@ -228,7 +245,7 @@ ldl_cholesterol: {
    - **GitHub → DID**: Future addition (dev login)
    - Generic structure supports ANY identifier type without contract changes
 
-**Package ID**: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8 — deployed March 11, 2026; on-chain version 4)
+**Package ID**: `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299` (v11 — deployed May 23, 2026; on-chain version 7; supersedes v10 `0xdfea0e92…`)
 **Registry Object ID**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92`
 
 ### 2.5.1. Identity Registry Structure Visualization
@@ -497,6 +514,7 @@ profile.reputation_level = 4;   // Level 4: Trusted
 ### 3.4. Lookup Flows
 
 #### **By Identifier (Email/Phone/Social)**
+
 ```move
 // 1. Identifier → DID
 let did = wot_identity_registry::lookup_by_identifier(
@@ -528,6 +546,7 @@ let profile = get_object<IdentityProfile>(profile_id);
 **Purpose**: Decentralized registry mapping DIDs to Profile Object IDs with flexible identifier support.
 
 **Core Registry Struct**:
+
 ```move
 public struct IdentityRegistry has key {
     id: UID,
@@ -560,6 +579,7 @@ public struct ProfileMapping has store, drop {
 - `total_profiles(registry)`: Get total registered profiles
 
 **Events**:
+
 ```move
 public struct ProfileRegistered has copy, drop {
     did: String,
@@ -574,6 +594,7 @@ public struct ProfileRegistered has copy, drop {
 ### 3.1. Core Identity Management (`wot_identity` module)
 
 **IdentityProfile Structure**:
+
 ```move
 public struct IdentityProfile has key, store {
     id: UID,
@@ -591,6 +612,7 @@ public struct IdentityProfile has key, store {
 **Atomic Data Types**:
 
 *Claims* (identity profile fields — upsert behavior, one per type):
+
 ```move
 // PQC Encrypted identity claim (December 2025)
 public struct EncryptedIdentityClaim has store, drop {
@@ -614,6 +636,7 @@ public struct EncryptedField has store, drop, copy {
 ```
 
 *Atoms* (structured, multi-field, time-series data — v8 unified architecture, March 2026):
+
 ```move
 // Universal encrypted atom — ONE struct for ALL 15 atom types
 // Replaces: HealthAtom, DocumentAtom, AssetAtom, ContactAtom, BiometricAtom,
@@ -663,6 +686,7 @@ See `docs/2026_Code_Work/26-03-10_Store_Functions.md` Section 9 for complete fie
 All sensitive identity fields are stored encrypted on-chain using post-quantum resistant encryption. The frontend encrypts before sending, and the chain stores only ciphertext.
 
 **Entry Function**:
+
 ```move
 public entry fun update_claim_encrypted(
     profile: &mut IdentityProfile,
@@ -708,6 +732,7 @@ public entry fun update_claim_encrypted(
 | 2 | AES-256-GCM | Alternative symmetric encryption |
 
 **Complete Round-Trip Flow**:
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  SAVE: Frontend → Backend → Chain                           │
@@ -832,6 +857,7 @@ stateDiagram-v2
 - Continuous attestation reception and trust score evolution
 
 **Dynamic Field Storage Pattern**:
+
 ```move
 // Claims storage (upsert — one per type)
 df::add(&mut profile.id, "enc:claim:first_name", encrypted_claim)
@@ -852,6 +878,7 @@ df::add(&mut profile.id, "privacy:health", privacy_config)
 **Deployment**: January 9, 2026 (Package v7)
 
 **FileVault Structure**:
+
 ```move
 public struct FileVault has key {
     id: UID,
@@ -863,6 +890,7 @@ public struct FileVault has key {
 ```
 
 **OwnedFile Structure** (stored as dynamic field):
+
 ```move
 public struct OwnedFile has store, drop {
     file_hash: vector<u8>,      // SHA256 of original (32 bytes)
@@ -881,6 +909,7 @@ public struct OwnedFile has store, drop {
 ```
 
 **ShareOffer Structure** (consent-based sharing):
+
 ```move
 public struct ShareOffer has key, store {
     id: UID,
@@ -933,6 +962,7 @@ public struct ShareOffer has key, store {
 ### 3.3. Trust Management (`wot_trust` module)
 
 **TrustProfile Structure**:
+
 ```move
 public struct TrustProfile has key, store {
     id: UID,
@@ -947,6 +977,7 @@ public struct TrustProfile has key, store {
 ```
 
 **Trust Scale System**:
+
 ```move
 // Trust scale: 0-200000 representing -100 to +100
 const TRUST_SCALE_OFFSET: u64 = 100000;      // Neutral point
@@ -956,6 +987,7 @@ const NEUTRAL_TRUST_LEVEL: u64 = 100000;     // 0 (neutral)
 ```
 
 **Attestation System**:
+
 ```move
 public struct Attestation has store, drop {
     attester: address,
@@ -971,29 +1003,31 @@ public struct Attestation has store, drop {
 - ✅ `update_trust_score`: Update trust scores
 - `create_trust_profile`: Create trust profiles (via PTB)
 
-### 3.3. Privacy Levels (Unified 0-3 Scale — March 2026)
+### 3.3. Privacy Levels (3-Band Scale — v9 May 2026)
 
-**Implementation Status**: ✅ **Fully implemented across all layers** (Move, backend, frontend). See `docs/2026_Code_Work/26-03-09_Privacy_Level.md` for complete architecture.
+**Implementation Status**: ✅ **Fully implemented across all layers** (Move, backend, frontend). v9 (May 8, 2026) collapsed the previous four-band scale to three bands by dropping `PRIVACY_TRUSTED_CONTACTS = 1` and `PRIVACY_TEMPORARY_ACCESS = 4`. See `docs/2026_Code_Work/26-05-07_2026_Q2_Plan_Update2.md` §C2/M4 (decision rationale), `docs/2026_Code_Work/26-05-08_SC_Upgrade.md` (publish record), and `docs/2026_Code_Work/26-04-07_Privacy_Level.md` (the four-band model as it stood in April; level-1 row is now historical).
 
 ```move
 const PRIVACY_PUBLIC: u8 = 0;              // Anyone can view
-const PRIVACY_TRUSTED_CONTACTS: u8 = 1;    // Only contacts in user's trust network
-const PRIVACY_SPECIFIC_ENTITIES: u8 = 2;   // Only explicitly granted addresses/DIDs
+// PRIVACY_TRUSTED_CONTACTS = 1            // DROPPED in v9 — no read-side resolver ever existed
+const PRIVACY_SPECIFIC_ENTITIES: u8 = 2;   // Only explicitly granted addresses/DIDs (via PrivacyAccessGrant)
 const PRIVACY_PRIVATE: u8 = 3;             // Owner only (DEFAULT for all new data)
-const PRIVACY_TEMPORARY_ACCESS: u8 = 4;    // DEPRECATED — kept for backward compat only
+// PRIVACY_TEMPORARY_ACCESS = 4            // DROPPED in v9 — superseded by PrivacyAccessGrant
+const E_DEPRECATED_PRIVACY_LEVEL: u64 = …; // raised by write paths if level == 1 or 4
 ```
 
+**Migration semantics**: legacy on-chain rows at `privacy_level = 1` or `= 4` remain readable by their owner (owner short-circuit in `has_claim_access` / `has_atom_access`). Non-owners always saw `false` for level 1 (no resolver was ever defined). To "migrate" a level-1 row, the owner re-saves it at level 0, 2, or 3.
+
 **Privacy enforcement** (all operational):
-- `has_claim_access(profile, claim_key, privacy_level, viewer, clock)` — enforces privacy for identity claims
-- `has_atom_access(profile, atom_key, privacy_level, viewer, clock)` — enforces privacy for atoms (v8)
-- `set_field_privacy(profile, field_key, level)` — per-field privacy control
-- `create_access_grant(profile, grantee_did, fields, context, expires_at)` — time-limited grants
+- `has_claim_access(profile, claim_key, privacy_level, viewer, clock)` — enforces privacy for identity claims; v9 removed the dead level-1 branch
+- `has_atom_access(profile, atom_key, privacy_level, viewer, clock)` — enforces privacy for atoms (v8); v9 removed the dead level-1 branch
+- `set_field_privacy(profile, field_key, level)` — per-field privacy control (level must be in {0, 2, 3})
+- `create_access_grant(profile, grantee_did, fields, context, expires_at)` — time-limited grants (the v4 successor)
 - `revoke_access_grant(profile, grantee_did)` — revoke access
 
-**Three-layer privacy architecture**:
-1. **Per-data privacy levels** (0-3) — stored in every `IdentityClaim`, `EncryptedIdentityClaim`, and `EncryptedAtom`
+**Two-layer privacy architecture** (was three-layer in the April model; the profile-level "PrivacySettings" layer has not added enforcement value beyond the per-data + per-field layers):
+1. **Per-data privacy levels** (0/2/3) — stored in every `IdentityClaim`, `EncryptedIdentityClaim`, and `EncryptedAtom`
 2. **Per-field access control** — `FieldAccessControl` + `PrivacyAccessGrant` dynamic fields
-3. **Profile-level settings** — `PrivacySettings` in `TrustProfile` (`wot_trust.move`), updatable via `update_privacy_settings()`
 
 **Backend API endpoints** (all JWT-authenticated):
 - `GET/PUT /api/privacy/settings` — read/update profile-level privacy
@@ -1001,6 +1035,7 @@ const PRIVACY_TEMPORARY_ACCESS: u8 = 4;    // DEPRECATED — kept for backward c
 - `POST/DELETE /api/privacy/grant` — grant/revoke time-limited access
 
 ### 3.4. Trust Algorithm Integration
+
 ```move
 // Imports trust functions from wot_trust
 use wot_id::wot_trust::{
@@ -1025,6 +1060,7 @@ const TRUST_ALGORITHM_REPUTATION: u8 = 4;
 - Cost: ~0.0076 IOTA per profile (creation + registry registration)
 
 **Rate Limiter** (`/backend/src/rate_limiter.rs`):
+
 ```rust
 pub struct RateLimiter {
     // Tracks last registration timestamp per DID
@@ -1136,13 +1172,13 @@ The `wot.id` Move smart contracts have been successfully deployed to the IOTA ne
 
 ### 4.1. Deployed Package and Registry IDs
 
-**wot_id Package**: `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8 — deployed March 11, 2026; on-chain version 4)
+**wot_id Package**: `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299` (v11 — deployed May 23, 2026; on-chain version 7; supersedes v10 `0xdfea0e92…`)
 
 **Deployment Details (January 9, 2026 - v7)**:
 - **Registry Object**: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (shared, preserved from v5)
 - **UpgradeCap**: `0x36f57406ec2957b4d2d8309a417122e614469b65ddcfc299d8501bfc1472d7ea` (secured in cold wallet)
 - **On-Chain Version**: 3 (upgraded via UpgradeCap)
-- **Status**: Live and operational on IOTA mainnet Protocol 24
+- **Status**: Live and operational on IOTA mainnet Protocol 26
 - **Changes**: FileVault module added, Move 2024 edition compatibility
 
 **Successful Profile Creation Evidence**:
@@ -1152,9 +1188,10 @@ The `wot.id` Move smart contracts have been successfully deployed to the IOTA ne
 - **Event Emitted**: `ProfileRegistered` with DID, profile_id, controller, timestamp
 
 **Environment Variables**:
+
 ```bash
-# January 9, 2026 v7 deployment (FileVault module added)
-IOTA_PACKAGE_ID=0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302
+# Current production (v11 — May 23, 2026; Move-layer cleanup release)
+IOTA_PACKAGE_ID=0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299
 IOTA_REGISTRY_OBJECT_ID=0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92
 IOTA_UPGRADE_CAP_ID=0x36f57406ec2957b4d2d8309a417122e614469b65ddcfc299d8501bfc1472d7ea
 RATE_LIMIT_HOURS=24
@@ -1179,6 +1216,7 @@ sequenceDiagram
 **Example `moveCall`**: Creating a new identity involves a PTB with a `moveCall` targeting the `wot_identity::create_identity` function within the deployed package.
 
 **Profile Creation CLI Command**:
+
 ```bash
 # Step 1: Create identity profile
 iota client ptb \
@@ -1198,6 +1236,7 @@ iota client ptb \
 ```
 
 **Profile Retrieval via Events**:
+
 ```bash
 # Query events for ProfileRegistered
 curl -X POST https://api.mainnet.iota.cafe \
@@ -1218,6 +1257,7 @@ iota client object PROFILE_ID --json
 ## 4.3. Integration Patterns
 
 ### Identity Creation Flow
+
 ```
 User → Backend API (generate Ed25519+BLAKE3 DID)
     → IOTA CLI (PTB construction)
@@ -1226,6 +1266,7 @@ User → Backend API (generate Ed25519+BLAKE3 DID)
 ```
 
 ### Claim Addition with Trust Impact
+
 ```move
 // In wot_identity.move
 public entry fun add_claim_with_trust(
@@ -1250,6 +1291,7 @@ public entry fun add_claim_with_trust(
 ```
 
 ### Privacy-Aware Data Access
+
 ```move
 // Check privacy settings from both systems
 fun can_access_claim(

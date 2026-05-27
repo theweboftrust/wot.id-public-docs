@@ -4,17 +4,19 @@
 
 > **Implementation Progress**: Talk is alpha-quality but functional for two simultaneously-online peers. End-to-end PQC encryption is on by default, IndexedDB persistence has shipped, on-chain mailbox UI is wired, and WebRTC is implemented behind a feature flag. Multi-device sync, offline-by-default, and trust-aware verification are still open. See `docs/2026_Code_Work/26-04-28_Communication_Functionality_Status.md` and `docs/2026_Code_Work/26-04-28_Talk_Functionality_Work.md` for the current pillar-by-pillar status.
 
-### **✅ Phase A: On-Chain Peer Discovery (December 3, 2025)**
-- ✅ Move contract: `service_endpoint` dynamic field on `TrustProfile`
-- ✅ Backend: `POST/GET/DELETE /api/identity/service-endpoint` endpoints
-- ✅ Backend: libp2p integration with QUIC transport
+> **Framing note**: P2P messages follow the same wot.id-stores-VALUES-not-files principle (`docs/01_Project_Overview_And_Principles.md` Principle #4 + `docs/Claude_Primer.md` §17). Talk encrypts the message *content* client-side with the recipient's hybrid PQC public key; the mailbox PTB stores the encrypted payload as an on-chain VALUE. Any attachments / source documents being referenced in a conversation stay on the participants' own devices or cloud — wot.id does not transmit or host file blobs on behalf of users.
+
+### **✅ Phase A: On-Chain Peer Discovery (December 3, 2025) — partly retained**
+- ✅ Move contract: `service_endpoint` dynamic field on `TrustProfile` (preserved). The `TrustProfile` write path is operational as of 2026-05-26 via the backend's `ensure_trust_profile_gas_station` lazy-provisioning orchestration (Open-Issues #8 closed — see `docs/2026_Code_Work/26-05-26_Default_Privacy_Orchestration.md`); previously a fresh `IdentityProfile` without a linked `TrustProfile` could not have a `service_endpoint` written.
+- ✅ Backend: `POST/GET/DELETE /api/identity/service-endpoint` endpoints (preserved; not currently called from the frontend)
+- ⚠️ Backend libp2p integration with QUIC transport — **removed in May 2026**, see [Update 2 doc](2026_Code_Work/26-05-07_2026_Q2_Plan_Update2.md). The on-chain `service_endpoint` field is retained as a generic, transport-agnostic registry slot.
 - ✅ Email→DID→profile lookup chain for peer discovery
 - ⚠️ Known bug: `lookup_profile_by_did` returns `WotIdentity`, not `TrustProfile`
 
 ### **✅ Phase B: Browser Support & WebSocket Relay (December 4, 2025)**
-- ✅ Backend: WebSocket relay endpoint `/ws/p2p/{peer_id}`
-- ✅ Backend: NAT traversal modules (AutoNAT, DCUTR, Circuit Relay v2)
-- ✅ Frontend: P2P service layer with WebSocket transport
+- ✅ Backend: WebSocket relay endpoint `/ws/p2p/{peer_id}` — **this is the production transport**
+- ⚠️ Backend NAT-traversal modules (AutoNAT, DCUTR, Circuit Relay v2) — **removed** with the libp2p stack. WebSocket relay covers traversal in production; WebRTC (Phase C) covers direct browser-to-browser when both peers are online.
+- ✅ Frontend: P2P service layer with WebSocket transport (raw WebSocket, not libp2p-js)
 - ✅ Frontend: `/talk` page with conversation list
 - ✅ Frontend: `/talk/[did]` chat page with real-time messaging
 - ✅ Browser detection for Safari/iOS compatibility
@@ -29,32 +31,38 @@
 ### **⏳ Phase D: Production Hardening (Planned)**
 - Security audit, multi-device sync, group messaging
 - "Encryption on by default" UX (auto-unlock prompt at app start vs. current opt-in unlock)
+- Note: Phase D **does not** assume libp2p reactivation. If a future direction needs libp2p (e.g., direct IoT-to-IoT, federation between wot.id instances), it goes back through a fresh design and explicit decision.
 
 ### **Current Architecture (Working)**
+
 ```
 Browser A → WebSocket → Backend Relay → WebSocket → Browser B
            /ws/p2p/{peer_id}        /ws/p2p/{peer_id}
                             ↓ on send-failure
                   Mailbox PTB on IOTA mainnet (offline drop-box)
+
+Optional (Phase C, flag-gated): direct Browser ↔ Browser via WebRTC.
 ```
 
 ### **Key Limitations (Current Phase)**
 - **No multi-device sync**: IndexedDB is per-device; no native sync layer yet (export/import is the manual workaround).
 - **WebRTC unactivated**: All traffic still relays through the backend in normal operation.
 - **No group messaging / no VC verification**: Phase D items.
+- **No federation / no direct IoT-to-IoT**: would require a new transport layer (not on the 2026 roadmap).
 
 ### **Files Implemented**
 | File | Description |
 |------|-------------|
-| `backend/src/handlers/ws_relay.rs` | WebSocket relay handler |
-| `backend/src/p2p/nat.rs` | AutoNAT configuration |
-| `backend/src/p2p/relay.rs` | Circuit relay v2 client |
+| `backend/src/handlers/ws_relay.rs` | WebSocket relay handler (production transport) |
+| `backend/src/handlers/p2p.rs` | REST handlers for the on-chain `service_endpoint` field |
 | `frontend/src/lib/p2p/p2pService.ts` | P2P service singleton |
 | `frontend/src/lib/p2p/websocketFallback.ts` | WebSocket client |
-| `frontend/src/lib/p2p/messageStore.ts` | localStorage persistence |
+| `frontend/src/lib/p2p/messageStore.ts` | IndexedDB persistence (`idb`) |
 | `frontend/src/hooks/useP2P.ts` | React hooks |
 | `frontend/src/app/talk/page.tsx` | Conversation list |
 | `frontend/src/app/talk/[did]/page.tsx` | Chat interface |
+
+**Removed** (May 2026): `backend/src/p2p/` (libp2p swarm, NAT traversal, relay client) and `backend/src/bin/wot-p2p.rs`. See Update 2 doc for the rationale.
 
 ---
 
@@ -69,7 +77,17 @@ A core architectural decision for `wot.id` is the creation of its own applicatio
 *   **IOTA Node P2P is for Consensus:** The IOTA network uses a [gossip-like P2P protocol](https://docs.iota.org/operator/data-management) for internal operations, specifically for nodes to synchronize their state and maintain the integrity of the ledger. This network is highly specialized and not designed for general-purpose dApp messaging.
 *   **No Public dApp Messaging Layer:** The IOTA framework does not currently expose a public API for dApps to send peer-to-peer messages through the node infrastructure. The standard interaction model is client-server, where a dApp communicates with a node via its [JSON-RPC API](https://docs.iota.org/iota-api-ref).
 
-Therefore, `wot.id` implements its own P2P stack using industry-standard tools to enable direct, secure, and private communication between end-user devices.
+Therefore, `wot.id` implements its own application-level transport for direct, secure, private communication between end-user devices.
+
+### 1.2. Why WebSocket relay + WebRTC (and not libp2p)
+
+The original Phase A/B design used `libp2p` as the Layer-1 transport. That direction was reversed in May 2026 (see [Update 2 doc](2026_Code_Work/26-05-07_2026_Q2_Plan_Update2.md)). The actual stack used in production is:
+
+* **WebSocket relay** (`/ws/p2p/{peer_id}`) — the default transport. Browser-native, no shim layer, traverses every NAT and corporate proxy that allows HTTPS.
+* **WebRTC** (flagged) — direct browser-to-browser when both peers are online and the flag is enabled. Provides exactly the property libp2p was meant to provide (no relay in the data path) without the libp2p-js bundle weight.
+* **On-chain mailbox** — asynchronous fallback when the recipient is offline.
+
+The libp2p stack required either a libp2p-js shim in the browser (heavy) or the WebSocket relay path anyway (and then libp2p adds nothing). The roadmap items that would actually justify libp2p — direct IoT-device-to-device, federated wot.id-to-wot.id messaging — are not on the 2026 plan. If they re-enter scope, libp2p (or another transport) is reconsidered then.
 
 **Architecture Context**:
 P2P communication in wot.id operates within the broader identity architecture:
@@ -80,7 +98,7 @@ P2P communication in wot.id operates within the broader identity architecture:
 
 **Key Principle**: P2P messages are ephemeral (off-chain), but participants are authenticated via on-chain W3C DIDs.
 
-### 1.2. The `wot.id` P2P Communication Stack
+### 1.3. The `wot.id` P2P Communication Stack
 
 The architecture is layered to separate concerns, from the underlying network transport to the application-level messaging protocol.
 
@@ -90,22 +108,31 @@ graph TD
         A[wot.id TSP Message]
     end
     subgraph "Layer 2: Encryption"
-        B[Signal Protocol PQXDH]
+        B[PQC E2EE: X25519 + ML-KEM-768 + ChaCha20-Poly1305]
     end
     subgraph "Layer 1: Networking"
-        C[libp2p Transport]
+        C[WebSocket relay - production]
+        D[WebRTC - flag-gated, direct]
+        E[On-chain Mailbox - async fallback]
     end
 
     A --> B
     B --> C
+    B --> D
+    B --> E
 
     style A fill:#d5e8d4
     style B fill:#cde4ff
     style C fill:#f8cecc
+    style D fill:#f8cecc
+    style E fill:#f8cecc
 ```
 
-*   **Layer 1: Networking ([`libp2p`](https://libp2p.io/))**: Provides the foundational P2P transport, handling NAT traversal, peer discovery, and secure channel establishment. The choice of `libp2p` is consistent with the technology used by IOTA nodes themselves, which use [`libp2p`-style multiaddresses](https://docs.iota.org/operator/full-node/source) for peering.
-*   **Layer 2: Encryption ([Signal Protocol](https://signal.org/docs/))**: Runs on top of `libp2p` to provide state-of-the-art, post-quantum end-to-end encryption for all message content.
+*   **Layer 1: Networking** — three transports, used together:
+    * **WebSocket relay**, a backend-mediated full-duplex channel (`/ws/p2p/{peer_id}`). This is the default and the only transport guaranteed to work across browsers and networks today.
+    * **WebRTC** (flagged: `NEXT_PUBLIC_TALK_WEBRTC`), direct browser-to-browser when both peers are online.
+    * **On-chain mailbox**, a Move-contract drop-box that stores encrypted payloads when the recipient is offline.
+*   **Layer 2: Encryption** — PQC end-to-end encryption is mandatory for all `text` messages (X25519 + ML-KEM-768 hybrid KEM, ChaCha20-Poly1305 AEAD). See `frontend/src/lib/crypto/`. The plaintext fallback was removed in Phase C.
 *   **Layer 3: Application (`wot.id` TSP)**: Defines the message structure and business logic for `wot.id` interactions, such as exchanging VCs or chat messages.
 
 ---
@@ -133,28 +160,28 @@ Users familiar with the legacy IOTA network may recall **IOTA Streams**, a frame
 
 | Mode                  | Primary Use Case                                | Mechanism                                                               | Latency | Persistence                                     |
 |-----------------------|-------------------------------------------------|-------------------------------------------------------------------------|---------|-------------------------------------------------|
-| **Off-Chain (P2P)**   | Real-time chat, file transfer, device control   | Direct device-to-device via `libp2p`                                    | Low     | None (messages only exist on peer devices)      |
+| **Off-Chain (P2P)**   | Real-time chat, file transfer, device control   | WebSocket relay (default) or WebRTC (flagged, direct browser-to-browser) | Low     | None (messages only exist on peer devices)      |
 | **On-Chain (Mailbox)**| Asynchronous messages, offline delivery         | `Move` smart contract on IOTA L2, interacted with via PTBs                | High    | On-chain (messages stored until claimed/deleted) |
 
 ---
 
-## 4. Layer 1: `libp2p` Networking & Peer Discovery
+## 4. Layer 1: Transport & Peer Discovery
 
-The foundation of the P2P stack is `libp2p`, a modular network stack that handles the complexities of peer-to-peer connections.
+The Layer-1 transport in production is the **WebSocket relay** (`backend/src/handlers/ws_relay.rs`), with **WebRTC** as a flag-gated direct path and the **on-chain mailbox** as the asynchronous fallback. The libp2p design originally documented in this section was abandoned in May 2026 (see [Update 2 doc](2026_Code_Work/26-05-07_2026_Q2_Plan_Update2.md)).
 
-### 4.1. Peer Discovery via DID Documents
+### 4.1. Peer Discovery via DID
 
-Before communication can begin, peers must discover each other's network address. `wot.id` leverages the W3C DID specification for this purpose, creating a direct link between a user's on-chain identity and their off-chain P2P address.
+Peer discovery is by DID, not by IP. The flow:
 
-1.  **Publishing:** When a user initializes the `wot.id` client, it generates a stable `libp2p` Peer ID and determines its network multiaddress (e.g., `/ip4/203.0.113.1/tcp/4001/p2p/QmPeerId...`). The user then adds this address to their `IotaDID` document as a `serviceEndpoint` with a specific type (e.g., `wot-id-p2p-messaging`). This update uses the **official IOTA Identity package's proposal-based governance system** for multi-controller identities or direct updates for single-controller identities, then is published on-chain.
-2.  **Resolving:** To contact Bob, Alice first resolves Bob's `IotaDID`. She parses the resulting DID document, finds the `serviceEndpoint` for P2P messaging, and retrieves Bob's multiaddress.
-3.  **Connecting:** Alice uses this multiaddress to establish a direct connection to Bob using `libp2p`.
+1.  **Identify the recipient by DID** (resolved from email, contact list, or QR code).
+2.  **Open a WebSocket session to the relay**, keyed by the local DID's PeerID.
+3.  **The relay routes** envelopes addressed to other connected DIDs in real time, and falls back to the on-chain mailbox when the recipient isn't connected.
 
-This mechanism ensures that the P2P address is anchored to the user's self-sovereign identity, making it discoverable and verifiable.
+The on-chain `service_endpoint` field on `TrustProfile` (and the `POST/GET/DELETE /api/identity/service-endpoint` REST handlers) is preserved for forward compatibility — a future direct-transport (e.g., a libp2p re-introduction or QUIC-direct) could use it to publish a DID-resolvable network address. It is currently unused on the read side.
 
 ### 4.2. NAT Traversal
 
-`wot.id` will leverage `libp2p`'s native support for NAT traversal, including techniques like **Hole Punching** and using **Relay Servers**, to ensure connectivity even when both peers are behind restrictive firewalls.
+The WebSocket relay traverses NATs by virtue of being a normal HTTPS connection (every NAT and corporate proxy that allows web traffic allows WebSocket). When `NEXT_PUBLIC_TALK_WEBRTC=1`, WebRTC negotiates a direct path with STUN/TURN; if that fails, traffic falls back to the relay.
 
 ---
 
@@ -202,8 +229,8 @@ sequenceDiagram
     participant Responder (Bob)
 
     Initiator (Alice)->>Initiator (Alice): 1. Resolve Responder's DID
-    Note over Initiator (Alice): Retrieve libp2p multiaddress
-    Initiator (Alice)->>+Responder (Bob): 2. Initiate Connection (via libp2p)
+    Note over Initiator (Alice): Look up recipient via DID directory
+    Initiator (Alice)->>+Responder (Bob): 2. Initiate Connection (WebSocket relay; or WebRTC if both online)
     Responder (Bob)-->>-Initiator (Alice): 3. Connection Established
 
     Initiator (Alice)->>+Responder (Bob): 4. Present Required VC (e.g., VerifiedHuman)

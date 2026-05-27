@@ -5,6 +5,7 @@
 The user experience of wot.id is shaped by its core commitments to user empowerment, security, and accessibility.
 
 *   **Absolute User Control & SSI**: The UX is designed to give users uncompromising ownership over their digital identity.
+*   **wot.id Manages VALUES, Not Files — Plus an Encrypted-Files Catalog as the Edge Case**: wot.id is, concretely, an interface for managing atomic data VALUES on the IOTA blockchain — write, read, share. That is the primary surface; the values are organized by domain (Identity Section, Health Section, etc.) and surfaced as encrypted atoms. UI copy for those domain surfaces should always lead with "what VALUES are stored" (e.g. *birth_date*, *glucose_level*) and "what document did the values come from" — never with "where is the file?" as if wot.id were the file's home. — Separately, the **Encrypted Files surface** is the edge case: a *catalog of files the user has chosen to link to their wot.id identity*. UI copy for Encrypted Files should lead with the file-as-thing-the-user-wants-linked, not with extracted values; a linked file might or might not correspond to a source document from which values were also extracted. The name "Encrypted Files" is correct for what it is — do not rename to "Encrypted Data" or "Encrypted Records". See `docs/01_Project_Overview_And_Principles.md` Principle #4 + `docs/Claude_Primer.md` §17.
 *   **Guaranteed Human Identity**: The interface makes identity verification clear and trustworthy.
 *   **Open and Accessible**: The UX strives for minimal friction and intuitive participation.
 *   **Seamless, Zero-Fee Interactions**: Leveraging IOTA enables fluid, unencumbered engagement.
@@ -19,9 +20,9 @@ The user experience of wot.id is shaped by its core commitments to user empowerm
 
 ### 2.1. Current Status (May 2026)
 
-**Deployment Status**: ✅ **PRODUCTION OPERATIONAL** at https://wot.id (Vercel; Next.js standalone output, not static export)
-**Backend Integration**: ✅ **CLI-BASED** - Backend uses IOTA CLI v1.21.1 for all blockchain interactions
-**Protocol**: IOTA mainnet Protocol 24 (Starfish consensus) with iota-sdk v1.21.1 type definitions
+**Deployment Status**: ✅ **PRODUCTION OPERATIONAL** at https://wot.id (Vercel; Next.js standalone output, not static export). Most recent production HEAD: `bab55ab` (PR #639 merge — Track 3 #9 ML-KEM determinism fully shipped, 2026-05-26 14:05 UTC; see `docs/2026_Code_Work/26-05-26_Frontend_Deploy.md`).
+**Backend Integration**: ✅ **CLI-BASED** - Backend uses IOTA CLI v1.23.2 for all blockchain interactions (upgraded from v1.21.1 on 2026-05-21 per `docs/2026_Code_Work/26-05-21_CLI_Upgrade.md`). The Rust `iota-sdk` Cargo dep that previously coexisted with the CLI was removed on 2026-05-26 (Open-Issues #12 closed — `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`).
+**Protocol**: IOTA mainnet Protocol 26 (Starfish consensus). The backend is CLI-only; no Rust SDK Cargo dep.
 **Technology Stack**: Next.js 15.5.7 (App Router), React 19, TypeScript, Tailwind CSS
 **Auth flow**: NextAuth (Google/GitHub/Apple) → frontend exchanges email for backend JWT via `POST /api/auth/exchange` (the legacy `/auth/token` chain to the retired Identity Service was repaired May 5, 2026 — see `docs/2026_Code_Work/26-05-05_Auth_Repair.md`).
 **Crypto state machine**: encryption keys live in IndexedDB (`wot-crypto.encryption-keys[did]`); backup-confirmation flag in `localStorage[\`${BACKUP_KEY}_${did}\`]`. Recovery from BIP-39 mnemonic now persists the backup flag (Fix A); save-handlers refuse to call `initializeNew()` when on-chain ciphertext exists (Fix B/C). See `docs/2026_Code_Work/26-05-06_Key_Regen_Incident.md`.
@@ -37,8 +38,9 @@ The user experience of wot.id is shaped by its core commitments to user empowerm
 - ✅ **Event-Based Lookups**: Backend queries `ProfileRegistered` events for DID→Profile ID mapping
 - ✅ **Zero Mock Data**: Identity data comes from IOTA mainnet, not hardcoded responses
 - ✅ **Hybrid Economic Model**: Gas-sponsored profile creation; user-funded transfers
-- ✅ **PQC Health Encryption**: Client-side hybrid X25519 + ML-KEM-768 encryption for health data
-- ✅ **Encryption Key Backup**: BIP-39 mnemonic backup/recovery for encryption keys
+- ✅ **PQC Health Encryption**: Client-side hybrid X25519 + ML-KEM-768 encryption for health data; library swapped Dashlane WASM → `@noble/post-quantum` v0.6.1 (audited TS) on 2026-05-26 to unlock deterministic ML-KEM keygen
+- ✅ **Deterministic ML-KEM Keypair**: Both halves of the hybrid keypair now derive from the BIP-39 mnemonic. ML-KEM-768 seed = HKDF-SHA256(ikm = X25519_priv, salt = `"wot.id/mlkem-768/v1"`, info = `""`, L = 64) → `ml_kem_768.keygen(seed)`. AutoUnlock byte-compares on-chain vs derived `mlkem_pubkey` and republishes on mismatch; per-DID `MlKemMigrationNotice` banner shown once on first post-migration unlock (Open-Issues #9 closed — `docs/2026_Code_Work/26-05-26_ML_KEM_Determinism_Plan.md`).
+- ✅ **Encryption Key Backup**: BIP-39 mnemonic backup/recovery for encryption keys — single mnemonic recovers BOTH X25519 and ML-KEM keypairs (since 2026-05-26)
 - ✅ **Wallet Persistence**: On-chain wallet address storage with mnemonic recovery
 - ✅ **Performance Optimization**: JWT caching prevents regeneration on navigation
 
@@ -103,6 +105,7 @@ The wot.id frontend architecture follows strict principles:
 - ✅ **Query Backend**: All data fetched from Backend API, which queries blockchain
 
 **Data Flow:**
+
 ```
 1. User clicks "Sign in with Google" → NextAuth obtains email
 2. Frontend → Backend: POST /api/auth/login {email}
@@ -114,7 +117,7 @@ The wot.id frontend architecture follows strict principles:
 ```
 
 **What Frontend Does NOT Do:**
-- ❌ Does NOT create DIDs (Identity Service does)
+- ❌ Does NOT create DIDs (Backend API does — DID generation was inlined March 7, 2026; the dedicated Identity Service microservice was retired then)
 - ❌ Does NOT store DIDs in browser (queries backend each time)
 - ❌ Does NOT interact with IOTA blockchain directly (backend does)
 - ❌ Does NOT maintain a local database
@@ -142,10 +145,9 @@ graph TD
     end
 
     subgraph "Backend Services"
-        D --> IDS[Identity Service<br/>W3C DID Core 1.0];
-        IDS --> CRYPTO[Ed25519 + BLAKE3<br/>Cryptographic Derivation];
+        D --> CRYPTO[Ed25519 + BLAKE3<br/>DID Derivation<br/>inlined into Backend];
         D --> CLI[IOTA CLI];
-        CLI --> E[IOTA Mainnet<br/>Protocol 24];
+        CLI --> E[IOTA Mainnet<br/>Protocol 26];
         D --> IDX[Event Indexer];
         IDX --> E;
     end
@@ -162,18 +164,16 @@ graph TD
     style E fill:#ccf,stroke:#333,stroke-width:2px
     style REG fill:#cfc,stroke:#333,stroke-width:2px
     style PROF fill:#cfc,stroke:#333,stroke-width:2px
-    style IDS fill:#ffe4cd,stroke:#333,stroke-width:2px
     style CRYPTO fill:#d4ffd1,stroke:#333,stroke-width:2px
 ```
 
 *   **Next.js Application**: Renders the UI and manages application state.
-*   **wot.id Backend API**: Orchestrates profile creation, sponsors gas, queries events, constructs PTBs via CLI.
-*   **Identity Service**: Microservice that creates W3C DID Core 1.0 compliant DIDs (Ed25519 + BLAKE3).
-*   **Ed25519 + BLAKE3**: Cryptographic DID derivation - generates keypair, derives DID from public key hash.
+*   **wot.id Backend API**: Orchestrates profile creation, generates W3C DID Core 1.0 compliant DIDs (Ed25519 + BLAKE3 — inlined into the Backend on 2026-03-07; the dedicated Identity Service microservice was retired then), sponsors gas, queries events, constructs PTBs via CLI.
+*   **Ed25519 + BLAKE3**: Cryptographic DID derivation — generates keypair, derives DID from public key hash.
 *   **IOTA CLI**: Backend executes CLI commands to interact with mainnet (no SDK transaction builder).
 *   **Event Indexer**: Backend queries `ProfileRegistered` events to find profile IDs by DID.
-*   **IOTA Mainnet**: All identity data stored on-chain as Move objects in registry and profiles (Protocol 24, Starfish consensus).
-*   **Identity Registry**: Shared object storing DID→Profile mappings and secondary identifier→DID registry (generic for email/phone/social) at `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (December 29, 2025 v6).
+*   **IOTA Mainnet**: All identity data stored on-chain as Move objects in registry and profiles (Protocol 26, Starfish consensus).
+*   **Identity Registry**: Shared object storing DID→Profile mappings and secondary identifier→DID registry (generic for email/phone/social) at `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (preserved across the v7 → v8 → v9 upgrades; current package: v9 `0x4a71c629…`, May 8, 2026).
 
 ### 2.2. Technology Stack
 
@@ -408,6 +408,7 @@ interface TrustAttestationData {
 **Purpose**: While the internal trust scale uses numeric values (-100,000 to +100,000 on-chain, -100 to +100 for display), the UI presents trust visually using a **9-level color scheme** that users can intuitively understand.
 
 **Visual Scale**:
+
 ```
 ❌ ━━ 🔴 ━━ 🟠 ━━ 🟡 ━━ ⚪ ━━ 🟡 ━━ 🟢 ━━ 🟢 ━━ ✅
 -100   -67   -34    -1     0    +1    +34   +67   +100
@@ -435,6 +436,7 @@ interface TrustAttestationData {
 - **Color progression**: Trust gradient flows from distrust (red) through neutrality (gray) to trust (green)
 
 **Implementation Functions**:
+
 ```typescript
 function getTrustLevel(score: number): string {
   if (score === 100) return "Completely True";
@@ -533,6 +535,7 @@ This ensures transparent, democratic, and cryptographically verifiable trust man
 The frontend integrates with the backend API for all on-chain operations. **Users do not need wallets or IOTA tokens** - the backend sponsors all transactions.
 
 **1. Profile Creation:**
+
 ```typescript
 // Create identity profile via backend API
 async function createProfile(did: string) {
@@ -551,6 +554,7 @@ async function createProfile(did: string) {
 ```
 
 **2. Fetching On-Chain Data:**
+
 ```typescript
 // Retrieve profile from IOTA mainnet via backend
 async function getProfile(did: string) {
@@ -702,8 +706,7 @@ This journey describes how a new user creates their wot.id Decentralized Identit
 
 *   **User:** The individual creating their identity.
 *   **wot.id Frontend:** The Next.js web application.
-*   **wot.id Backend API:** Sponsors gas and constructs PTBs via IOTA CLI.
-*   **Identity Service:** Creates W3C-compliant DID documents.
+*   **wot.id Backend API:** Sponsors gas, generates W3C-compliant DIDs (Ed25519 + BLAKE3, inlined since 2026-03-07; the dedicated Identity Service was retired then), and constructs PTBs via IOTA CLI.
 *   **IOTA Mainnet:** Where identity registry and profiles are stored.
 
 **Steps:**
@@ -717,10 +720,9 @@ This journey describes how a new user creates their wot.id Decentralized Identit
     *   Backend API issues JWT token for authenticated session.
     *   **No blockchain keys or wallet setup needed.**
 
-3.  **DID Generation (Backend, Identity Service):**
+3.  **DID Generation (Backend):**
     *   Frontend calls `/api/identity/create` with JWT token.
-    *   Backend calls Identity Service to generate W3C DID document.
-    *   Identity Service returns `did:iota:mainnet:{id}` string.
+    *   Backend generates W3C DID document inline (Ed25519 keypair + BLAKE3 hash of public key) and returns the `did:iota:mainnet:{id}` string. *(Pre-2026-03-07 this was a separate Identity Service microservice call; the service was retired and its ~15-line DID-generation logic inlined into the Backend then.)*
 
 4.  **Profile Creation on IOTA Mainnet (Backend):**
     *   Backend constructs PTB via IOTA CLI:
@@ -891,6 +893,7 @@ sequenceDiagram
 The frontend currently uses browser-based Ed25519 key generation for DID ownership:
 
 **Key Generation** (`/frontend/src/lib/did-keys.ts`):
+
 ```typescript
 import { ed25519 } from '@noble/ed25519';
 
@@ -992,6 +995,7 @@ localStorage.setItem('did_keypair', JSON.stringify({
 #### Frontend Code Structure
 
 **Key Files**:
+
 ```
 /frontend/src/
 ├── lib/
@@ -1008,6 +1012,7 @@ localStorage.setItem('did_keypair', JSON.stringify({
 ```
 
 **Component Communication**:
+
 ```typescript
 // Parent component maintains state
 const [didKeypair, setDidKeypair] = useState<Keypair | null>(null);
@@ -1070,6 +1075,7 @@ The frontend will integrate with the IOTA Kiosk pattern (see `docs/09_Data_Stora
 - **Portfolio Analytics**: Track asset values and performance
 
 **Wallet Architecture:**
+
 ```
 User's wot.id Wallet
 ├── Identity Layer (Current: October 2025)

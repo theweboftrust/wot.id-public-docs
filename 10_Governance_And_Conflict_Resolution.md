@@ -12,7 +12,7 @@ Governance in wot.id operates within the broader technical architecture:
 - **Trust Integration**: Voting power may be weighted by trust scores, see `docs/07_Trust_Architecture_And_Management.md`
 - **No Centralized Database**: All governance data on-chain, aligning with decentralization principles
 
-**Key Principle**: Governance mechanisms extend the core architecture principle of 100% on-chain data storage.
+**Key Principle**: Governance mechanisms extend the core architecture principle that wot.id stores **VALUES** (identity claims, governance proposals, votes, attestations) on chain — not source documents. The PDFs / scans / source materials behind a governance argument stay on the participant's own device or cloud; what goes on chain is the *encoded position* (the value of a vote, the typed change kind of a proposal, the encrypted text of an argument), not the underlying document. See `docs/01_Project_Overview_And_Principles.md` Principle #4 + `docs/Claude_Primer.md` §17.
 
 ## 2. Core Governance Principles
 
@@ -62,14 +62,15 @@ To facilitate transparent and auditable governance processes, `wot.id` leverages
 
 These on-chain objects provide a structured and verifiable foundation for key governance activities.
 
-### 4.1. Phase 2: Implemented Governance Features
+### 4.1. Phase 2: Move Primitives Deployed; Production Usage Deferred
 
-**Current Implementation Status**:
-The Move-side data structures for the governance system are deployed in the unified `wot_id` package's `wot_trust` module (`0x14b1e852…`, v8 March 11, 2026). **The backend REST endpoints and frontend UI for proposals were deleted on 2026-03-07** because they were mock-only and returned fabricated data — see §6 note below and `docs/2026_Code_Work/26-03-07_Dead_Endpoints_Audit.md`. The on-chain structs remain available for any future implementation.
+**Current Implementation Status (May 2026)**:
+The Move-side data structures for the governance system are deployed in the unified `wot_id` package's `wot_trust` module (`0x4a71c629…`, v9 May 8, 2026; supersedes v8 `0x14b1e852…`). **The backend REST endpoints and frontend UI for proposals were deleted on 2026-03-07** because they were mock-only and returned fabricated data — see §6 note below and `docs/2026_Code_Work/26-03-07_Dead_Endpoints_Audit.md`. The on-chain structs remain available for any future implementation. Production governance work is **deferred to Q3+** per `docs/2026_Code_Work/26-05-03_2026_Q2_Plan_Update1.md` (Q2 traction is the priority; governance only re-enters scope if a Democratech-style partnership materializes).
 
 **Implemented On-Chain Governance Structures** (Move side only; no API or UI today):
 
 **Implemented Governance Structures**:
+
 ```move
 public struct TrustProposal has key, store {
     id: UID,
@@ -227,6 +228,7 @@ graph TB
 ```
 
 **Voting Power Formula:**
+
 ```
 Voting Power = Base Vote (1.0) × Trust Multiplier × Context Weight
 
@@ -481,11 +483,11 @@ The development of wot.id is guided by a set of core principles and best practic
 
 The wot.id project actively enforces its core Technical Design Principles throughout its lifecycle:
 
-1.  **Modularity and Composability**: Achieved through microservices (e.g., Identity Service), distinct Move modules, and a component-based frontend.
-2.  **Security and Privacy by Design**: Implemented via E2EE, PQC considerations, secure key management, input validation, and privacy-preserving techniques where applicable.
+1.  **Modularity and Composability**: Achieved through distinct Move modules within the unified `wot_id` package, a single Backend API (the formerly-separate Identity Service was retired and inlined on 2026-03-07 — see `docs/2026_Code_Work/26-03-07_Identity_Service.md`), and a component-based frontend.
+2.  **Security and Privacy by Design**: Implemented via post-quantum hybrid encryption (X25519 + ML-KEM-768) throughout the identity stack, BIP-39 client-side key custody, secure key management, input validation, and the 3-band privacy model with `PrivacyAccessGrant`-based time-limited access (v9 May 2026).
 3.  **Decentralization and User Sovereignty**: Core to the architecture, with users controlling their DIDs, data, and participation in governance.
 4.  **Interoperability and Standardization**: Pursued through adherence to W3C DIDs/VCs, ToIP alignment, and a planned Trust Spanning Protocol.
-5.  **Resilience and Fault Tolerance**: Addressed via robust error handling, process isolation (e.g., Identity Service), and design for distributed systems.
+5.  **Resilience and Fault Tolerance**: Addressed via robust error handling, process isolation, and design for distributed systems.
 6.  **Rigorous Testing and Validation**: Enforced through a multi-layered testing strategy and planned security audits.
 7.  **Crypto-Agility and Future-Proofing**: Addressed by planning for PQC algorithm transitions and designing for adaptable cryptographic components.
 8.  **Simplicity and Clarity**: Striving for understandable code, clear APIs, and well-defined system boundaries.
@@ -502,7 +504,7 @@ This roadmap outlines the planned phases for the wot.id project, integrating fut
 *   **Phase 1: Foundation (✅ COMPLETED)**
     *   Establishment of core project principles and technical design guidelines.
     *   Development of foundational Move smart contracts for DIDs, VCs, and basic trust objects.
-    *   Implementation of the core backend services and Identity Service.
+    *   Implementation of the core Backend API (originally split into Backend + Identity Service; the Identity Service was retired and inlined on 2026-03-07).
     *   Initial prototype of the frontend user interface.
     *   Consolidation and creation of comprehensive project documentation.
     *   Basic governance and conflict resolution framework design.
