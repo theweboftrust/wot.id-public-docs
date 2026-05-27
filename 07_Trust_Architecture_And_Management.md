@@ -1,11 +1,13 @@
 # 07: wot.id - Comprehensive Trust Architecture
 
 > **Current Status: On-Chain Attestation System Operational (May 2026)**
-> The `wot.id` trust architecture uses custom Move contracts deployed on IOTA mainnet. The **`wot_trust` module** lives in the unified `wot_id` package (`0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302`, v8 deployed March 11, 2026; the historical standalone deploys at `0xe66ba135…` and `0xf8ddc106…` are no longer addressed by the backend) and provides on-chain attestation creation, storage, and sharing with u64 trust_level, context_uri, and status lifecycle. The **Identity Registry** provides decentralized DID→Profile lookups. Backend uses CLI-based PTB construction with iota-sdk v1.21.1 types (Protocol 24, Starfish consensus) and the gas station pattern.
+> The `wot.id` trust architecture uses custom Move contracts deployed on IOTA mainnet. The **`wot_trust` module** lives in the unified `wot_id` package (`0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299`, v11 deployed May 23, 2026 — Move-layer cleanup release (V11-1…V11-14: hardened attestation auth v2, typed governance v2, real trust aggregates, plus 9 body-only fixes) — see `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md`; supersedes v10 `0xdfea0e92…` of May 17, 2026 and v8 `0x14b1e852…` of March 11, 2026; the historical standalone deploys at `0xe66ba135…` and `0xf8ddc106…` are no longer addressed by the backend) and provides on-chain attestation creation, storage, and sharing with u64 trust_level, context_uri, and status lifecycle. The **Identity Registry** provides decentralized DID→Profile lookups. Backend uses CLI-based PTB construction (CLI v1.23.2; Rust `iota-sdk` Cargo dep removed on 2026-05-26, Open-Issues #12 closed — `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`) and the gas station pattern on Protocol 26 (Starfish consensus). **TrustProfile write path is operational** since 2026-05-26: the `ensure_trust_profile_gas_station` orchestration in `backend/src/handlers/trust_profile.rs` lazily provisions + transfers + links a `TrustProfile` to any `IdentityProfile` that lacks one, closing the previously-broken default-privacy write path (Open-Issues #8 closed — `docs/2026_Code_Work/26-05-26_Default_Privacy_Orchestration.md`). **Trust-score compute today is the v0 backend aggregator** — flat arithmetic mean over the last 100 attestation events; the Bayesian inference engine described in `docs/2026_Code_Work/26-05-01_Proprietary_Algorithm_Draft.md` is unbuilt (see `docs/2026_Code_Work/26-05-08_Inference_Compute.md` for the v0 → v1 → v2 plan).
 
 ## 1. Introduction and Core Philosophy
 
 The `wot.id` trust architecture provides a nuanced, robust, and transparent framework for establishing and assessing trust in a decentralized identity system. It is designed to be flexible enough to cater to diverse use cases while maintaining a consistent and understandable model of trust, deeply integrated with IOTA's capabilities. The Universal Trust Scale described herein is a key technical enabler for providing the **"Observability"** crucial for successful innovation diffusion, as detailed in `docs/11_Onboarding_And_Adoption.md`.
+
+> **What trust is over**: trust scores accumulate over **VALUES** — `first_name`, `glucose_level`, `passport_no`, etc. — extracted by users from their own source documents and stored encrypted on chain. Trust is *not* over the source documents themselves (those stay on the user's device or cloud — wot.id is not a file-storage provider). An attestation says *"this VALUE is reliable"*, not *"this file is authentic"*. See `docs/01_Project_Overview_And_Principles.md` Principle #4 + `docs/Claude_Primer.md` §17.
 
 ### 1.0. Foundational Understanding: Trust = Data Reliability
 
@@ -95,19 +97,28 @@ A consistent scale is crucial for interoperability and clear interpretation of t
 - **Backend Approach**: CLI-only (no SDK), 95% build time improvement
 - **Gas Station**: Backend sponsors transactions with 24h rate limiting
 
-This approach ensures decentralized lookups without centralized databases while maintaining W3C DID compliance via the Identity Service.
+This approach ensures decentralized lookups without centralized databases while maintaining W3C DID Core 1.0 compliance via the Backend API (Ed25519 + BLAKE3 DID generation, inlined into the Backend on 2026-03-07; the dedicated Identity Service microservice was retired then — see `docs/2026_Code_Work/26-03-07_Identity_Service.md`).
 
-### 1.4. Current Implementation Status (December 2025)
+### 1.4. Current Implementation Status (May 2026)
 
 **✅ OPERATIONAL FEATURES:**
 
 **On-Chain Attestation System (Nov 19, 2025):**
-- ✅ **wot_trust module**: deployed in the unified `wot_id` package `0x14b1e852011ad605e54527543f5f1553492feb4a48c1bceeab8a42234b365302` (v8, March 11, 2026). The historical `0xf8ddc1060e…` was a pre-v8 standalone deploy and is no longer addressed by the backend. See `docs/2026_Code_Work/26-03-11_SC_Upgrade.md`.
-- ✅ **create_attestation**: Creates attestation objects with privacy-preserving SHA3-256 data hashes
-- ✅ **share_attestation**: Makes attestations publicly accessible on-chain
+- ✅ **wot_trust module**: deployed in the unified `wot_id` package `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299` (v11, May 23, 2026 — Move-layer cleanup release (V11-1…V11-14); supersedes v10 `0xdfea0e92…` (which added `create_identity_entry` for user-signed identity creation) of May 17, 2026 and v8 `0x14b1e852…` of March 11, 2026). The historical `0xf8ddc1060e…` was a pre-v8 standalone deploy and is no longer addressed by the backend. See `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md`, `docs/2026_Code_Work/26-05-17_SC_V10_Upgrade.md`, `docs/2026_Code_Work/26-05-08_SC_Upgrade.md`, and `docs/2026_Code_Work/26-03-11_SC_Upgrade.md`.
+- ✅ **create_attestation**: Creates attestation objects with privacy-preserving SHA3-256 data hashes (the original, gas-station-signed; backend calls it via `attestation.rs:494`)
+- ✅ **create_attestation_v2** *(v11, hardened — 2026-05-23)*: same shape but the attester is derived from `tx_context::sender(ctx)` rather than passed as an unverified `attester_identity_id` parameter. The original `create_attestation` is kept for backward compat; the backend should migrate to v2 once attestation writes move to the user-signed path. See `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md` V11-5.
+- ✅ **share_attestation**: Makes attestations publicly accessible on-chain (shared object)
+- ✅ **update_attestation_status** *(v11, hardened — 2026-05-23)*: now enforces `tx_context::sender == attestation.attester_identity_id` (V11-6 — the comment claimed "only the attester" since launch but the assert was missing).
 - ✅ **First Production TX**: `4Uz9SxQv6gMyd21wwvZhZ4ZJ5KVsAAo4ia46SbHadWDf`
 - ✅ **Attestation Object**: `0x04333edab710063e8eea74e0a173a07cf870cbc35fd43877f1102021873948bc`
 - ✅ **Explorer Verification**: Visible on https://explorer.rebased.iota.org (the post-Rebased mainnet explorer; do not use `explorer.iota.org` — that redirects to the legacy Stardust archive)
+
+**On-Chain Trust Aggregates (V11-13, 2026-05-23):**
+- ✅ **AtomTrustAggregate** — per-atom dynamic field maintained on every `link_attestation`; tracks `attestation_count`, `total_trust_assessment`, `last_updated`. Read by `calculate_atom_trust_score`.
+- ✅ **ProfileTrustAggregate** — per-profile dynamic field with `total_attestations`, `total_trust_sum`, a 5-bucket trust distribution `[0..40k, 40k..80k, 80k..120k, 120k..160k, 160k..200k]`, and `last_updated`. Read by `calculate_profile_trust_metrics` / `calculate_trust_metrics`.
+- ✅ The three trust-scoring functions (`calculate_atom_trust_score`, `calculate_profile_trust_metrics`, `calculate_trust_metrics`) return real values from the on-chain aggregates instead of placeholder NEUTRAL/empty. Relationship-based trust is still TBD (no relationship-aggregate index yet). See `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md` V11-13.
+
+**Typed Governance Proposals (V11-8, 2026-05-23):** — `TrustProposalV2` + `create_trust_proposal_v2` / `vote_on_proposal_v2` / `execute_proposal_v2` entry trio; the old `TrustProposal` and its create/vote/execute functions are deprecated and abort with `E_DEPRECATED_USE_V2`. Backend `/api/proposals/*` routes are still missing (Open-Issues #19). See §3.5 and `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md` V11-8.
 
 **QR Code Attestation Flow (Nov 17, 2025):**
 - ✅ **Phase 1A - QR Generation**: `POST /api/v1/attestation/generate-qr`
@@ -164,6 +175,7 @@ All trust-related data is stored 100% on-chain in Move contracts:
 - ✅ **Trust Algorithm Config**: User-configurable trust calculation parameters
 
 **Example: Health Data with Trust Scores**
+
 ```
 Profile Object (on-chain):
   did: "did:iota:mainnet:abc123"
@@ -477,28 +489,30 @@ This sequence diagram illustrates a common flow where a user (Alice) creates an 
 ```mermaid
 sequenceDiagram
     participant AliceApp as Alice's App
-    participant IdentityService as wot.id Identity Service
+    participant Backend as wot.id Backend API
     participant IOTANode as IOTA Mainnet Node
-    participant TrustModule as wot_id::trust Module
+    participant TrustModule as wot_trust Module
 
-    AliceApp->>IdentityService: 1. Submit Attestation Request (data: attesterDID, targetDID, claim, assessment, context, etc.)
-    IdentityService->>IdentityService: 2. Validate Request (schema, DIDs, context URI)
-    IdentityService->>IdentityService: 3. Construct Signature Payload for Alice
-    IdentityService->>AliceApp: 4. Return Payload for Signing
+    AliceApp->>Backend: 1. Submit Attestation Request (data: attesterDID, targetDID, claim, assessment, context, etc.)
+    Backend->>Backend: 2. Validate Request (schema, DIDs, context URI)
+    Backend->>Backend: 3. Construct Signature Payload for Alice
+    Backend->>AliceApp: 4. Return Payload for Signing
     AliceApp->>AliceApp: 5. Alice Signs Payload (using local private key)
-    AliceApp->>IdentityService: 6. Submit Signed Attestation (data + signature)
-    IdentityService->>IdentityService: 7. Verify Alice's Signature
-    IdentityService->>IdentityService: 8. Construct PTB: moveCall `trust::create_attestation(...)`
-    IdentityService->>IOTANode: 9. Submit PTB
+    AliceApp->>Backend: 6. Submit Signed Attestation (data + signature)
+    Backend->>Backend: 7. Verify Alice's Signature
+    Backend->>Backend: 8. Construct PTB: moveCall `wot_trust::create_attestation(...)`
+    Backend->>IOTANode: 9. Submit PTB (CLI-based, gas-station sponsored)
     IOTANode->>TrustModule: 10. Execute `create_attestation` function
     TrustModule-->>IOTANode: 11. New Attestation Object ID / Success
-    IOTANode-->>IdentityService: 12. PTB Execution Result (Success/Failure, Object ID)
-    IdentityService-->>AliceApp: 13. Confirmation (Attestation Created)
+    IOTANode-->>Backend: 12. PTB Execution Result (Success/Failure, Object ID)
+    Backend-->>AliceApp: 13. Confirmation (Attestation Created)
 ```
+
+> **History note**: prior to 2026-03-07 this flow ran through a separate `Identity Service` microservice (port 8081) that owned PTB construction. The Identity Service was retired and its logic inlined into the Backend API on that date — see `docs/2026_Code_Work/26-03-07_Identity_Service.md`.
 
 ### 3.2. Example PTB for Creating an Attestation
 
-The `identity-service`, using the `iota-sdk` (Rust), constructs a PTB similar to this conceptual example:
+The Backend API constructs and submits the PTB through the `iota` CLI v1.23.2 (the Rust `iota-sdk` Cargo dep that previously supplied type aliases was removed on 2026-05-26 — Open-Issues #12 closed). The shape below is the conceptual JSON equivalent:
 
 ```json
 // Conceptual JSON representation of a PTB for creating an Attestation
@@ -572,8 +586,8 @@ The `identity-service`, using the `iota-sdk` (Rust), constructs a PTB similar to
 
 4.  **Attestation Submission & Storage (Alice's Device - Attester):**
     *   Alice's app then needs to submit/store this attestation. Options include:
-        *   **Direct On-Chain Submission**: If Alice's app has the capability (and Alice has funds for gas), it could construct a PTB with a `moveCall` to the `wot_id::credentials` module's `create_attestation` function and submit it to an IOTA node. In most cases, this submission would still be proxied through the `identity-service` for consistency.
-        *   **Submission via Identity Service**: Alice's app sends the signed attestation data to the `wot.id` **`identity-service`**. The service then validates it, constructs the PTB, and submits it to IOTA mainnet. This is the standard architectural pattern.
+        *   **Direct On-Chain Submission**: If Alice's app has the capability (and Alice has funds for gas), it could construct a PTB with a `moveCall` to the `wot_trust` module's `create_attestation` function and submit it to an IOTA node. In most cases, this submission is still proxied through the **Backend API** for gas-station sponsorship and consistency.
+        *   **Submission via Backend API** *(standard pattern)*: Alice's app sends the signed attestation data to the `wot.id` **Backend API**. The Backend validates it, constructs the PTB (CLI-based, gas-station sponsored), and submits it to IOTA mainnet. This is the production-deployed path. *(Pre-2026-03-07 this role belonged to a separate Identity Service microservice; that service was retired and its logic inlined into the Backend — see `docs/2026_Code_Work/26-03-07_Identity_Service.md`.)*
         *   **Local Storage / Batching (Off-Chain First)**: Alice's app stores the signed attestation locally. It can be shared directly with Bob (e.g., via Bluetooth/NFC if he needs an immediate off-chain copy) or batched with other attestations for later submission to the Backend API or on-chain. This is useful for offline scenarios or to save on transaction fees.
         *   **Callback Submission**: If a `callbackUrl` was provided in the QR, Alice's app could POST the signed attestation to that URL (which might be an endpoint controlled by Bob or a trusted intermediary).
 
@@ -634,7 +648,7 @@ Web applications and services can also participate in the `wot.id` trust ecosyst
 5.  **Attestation Submission & Storage:**
     *   The web platform receives the signed attestation.
     *   It can then:
-        *   Submit it to the `wot.id` **`identity-service`** for on-chain anchoring.
+        *   Submit it to the `wot.id` **Backend API** for on-chain anchoring (the unified service that replaced the retired Identity Service in March 2026).
         *   Store it in its own database and make it visible within the platform.
         *   Offer it to the Subject (Bob) for their records.
 
@@ -649,7 +663,7 @@ Web applications and services can also participate in the `wot.id` trust ecosyst
 3.  **Delivery/Storage:**
     *   The service can offer the signed attestation to the user as a downloadable Verifiable Credential or `Attestation` object.
     *   It might anchor a hash of the attestation on-chain for public verifiability.
-    *   It can submit the full attestation to the `wot.id` **`identity-service`** if it's meant to be broadly discoverable (and if the user consents).
+    *   It can submit the full attestation to the `wot.id` **Backend API** if it's meant to be broadly discoverable (and if the user consents).
 
 Web-based attestations bridge the gap between traditional web interactions and the decentralized trust fabric of `wot.id`, allowing trust to be built and recognized across diverse online experiences.
 
@@ -706,16 +720,20 @@ Automated attestations from services provide a scalable way to inject real-time,
 
 ### 3.5. Phase 2: Governance Proposals
 
-**Proposal-Based Trust Governance**:
-`wot.id` implements democratic governance for trust profile updates through the proposal system:
+**Proposal-Based Trust Governance**: `wot.id` implements on-chain governance for trust-profile updates through a typed proposal system.
+
+**v11 redesign (2026-05-23, V11-8)**: the original `TrustProposal` carried `proposal_type: String` + `proposed_changes: String` (a JSON blob). Move has no JSON parser, so the original `execute_proposal` could not actually interpret `proposed_changes` — it hardcoded `+100` to `trust_score` regardless of the proposal. v11 replaces the design with **typed change kinds**:
 
 ```move
-public struct TrustProposal has key, store {
+const PROPOSAL_KIND_SCORE_DELTA: u8 = 1;
+const PROPOSAL_KIND_REPUTATION_SET: u8 = 2;
+
+public struct TrustProposalV2 has key, store {
     id: UID,
     target_profile_id: address,
     proposer_id: address,
-    proposal_type: String,
-    proposed_changes: String,
+    change_kind: u8,         // PROPOSAL_KIND_SCORE_DELTA or PROPOSAL_KIND_REPUTATION_SET
+    change_value: u64,       // interpreted per kind (delta to add, or new reputation level 1..=5)
     required_votes: u64,
     current_votes: u64,
     voters: vector<address>,
@@ -725,13 +743,22 @@ public struct TrustProposal has key, store {
 }
 ```
 
-**Governance Workflow**:
-1. **Proposal Creation**: Community members propose trust profile updates
-2. **Voting Period**: Stakeholders vote on proposals with transparent tracking
-3. **Execution**: Approved proposals automatically execute trust updates
-4. **On-Chain Verification**: All governance actions are recorded on the IOTA distributed ledger for transparency
+**Entry functions (v11)**:
+- `create_trust_proposal_v2(target_profile_id, proposer_id, change_kind, change_value, required_votes, duration_hours, ctx)` — validates `change_kind` ∈ {SCORE_DELTA, REPUTATION_SET}; for REPUTATION_SET also validates `change_value ∈ 1..=5`; shares the new proposal as a shared object.
+- `vote_on_proposal_v2(proposal, voter_id, ctx)` — checks expiry, executed state, and duplicate-vote guard; appends voter; bumps `current_votes`.
+- `execute_proposal_v2(proposal, target_profile, ctx)` — checks vote threshold; applies the typed change (SCORE_DELTA adds `change_value` to `trust_score`, saturating at `MAX_TRUST_LEVEL`; REPUTATION_SET sets `reputation_level` to `change_value`).
 
-This ensures democratic, transparent, and cryptographically verifiable trust management.
+**Deprecated (v11)**: `TrustProposal` + `create_trust_proposal` / `vote_on_proposal` / `execute_proposal` are kept on chain for `compatible`-policy preservation, but their bodies now `abort E_DEPRECATED_USE_V2`. Callers must migrate to v2.
+
+**Wiring status**: Move side complete; backend `/api/proposals/*` routes still missing — tracked under Open-Issues #19. No frontend governance surface yet. The original "public fun not entry, uncallable from a PTB" framing of #19 was wrong (`public fun` *is* PTB-callable — `attestation.rs:494` proves it); the real blocker was the JSON-blob `proposed_changes`, which v11 replaced with typed fields. See `docs/2026_Code_Work/26-05-21_Move_v11_Scope.md` §2 + `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md` V11-8.
+
+**Governance Workflow** (post-v11):
+1. **Proposal Creation**: Community member calls `create_trust_proposal_v2` with a typed change kind and value.
+2. **Voting Period**: Stakeholders call `vote_on_proposal_v2`; duplicates rejected; voting closes at `expires_at`.
+3. **Execution**: Anyone calls `execute_proposal_v2` once the vote threshold is reached; the typed change is applied to the target `TrustProfile`.
+4. **On-Chain Verification**: All governance actions are recorded on the IOTA distributed ledger and surface as `ProposalVoted` / `ProposalExecuted` events.
+
+This ensures democratic, transparent, and cryptographically verifiable trust management. The v11 typed-proposal redesign also means proposal effects are bounded and inspectable on chain — not a free-form JSON blob whose semantics depended on a parser the chain didn't have.
 
 
 ## 4. Trust Aggregation and Computation Models
@@ -879,7 +906,7 @@ These Move patterns collectively enable a robust and expressive on-chain represe
 
 ### 6.2. Programmable Transaction Blocks (PTBs) for Trust Operations
 
-All state changes and interactions with the on-chain trust objects are executed via IOTA Programmable Transaction Blocks (PTBs). The `wot.id` Backend API typically uses the Rust `iota-sdk` to construct and submit these PTBs.
+All state changes and interactions with the on-chain trust objects are executed via IOTA Programmable Transaction Blocks (PTBs). The `wot.id` Backend API constructs and submits these PTBs by shelling out to the `iota` CLI v1.23.2. (The Rust `iota-sdk` Cargo dep that the original architecture used for type aliases was removed on 2026-05-26 — Open-Issues #12 closed; see `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`.)
 
 1.  **`moveCall` for Trust Functions:**
     *   The primary PTB command for interacting with the trust modules is `moveCall`. This command invokes specific public functions within the deployed Move contracts (e.g., in `wot_id::credentials` or `wot_id::context_registry`).
@@ -906,10 +933,10 @@ All state changes and interactions with the on-chain trust objects are executed 
     *   This enables complex, multi-step workflows to be defined and executed as a single atomic operation.
 
 4.  **Gas Management:**
-    *   PTBs offer precise control over transaction gas fees, which is essential for managing operational costs and ensuring reliable execution. The Rust `iota-sdk` provides functions to:
-        *   `setGasPrice()`: Specify the price per unit of gas, allowing for transaction prioritization.
-        *   `setGasBudget()`: Define the maximum amount of gas the transaction is allowed to consume. This can be determined automatically by the SDK via a dry run or set explicitly.
-        *   `setGasPayment()`: Specify the account from which gas fees will be paid.
+    *   PTBs offer precise control over transaction gas fees, which is essential for managing operational costs and ensuring reliable execution. The backend constructs CLI invocations that pass:
+        *   `--gas-budget <amount>`: maximum gas the transaction is allowed to consume. Backend defaults flow through `config::gas_budget_write()` (consolidated 2026-05-26 — Open-Issues #13 closed).
+        *   `--gas <object-id>`: the coin used for gas payment, sourced from the gas-station wallet for sponsored transactions or the user's personal wallet for user-funded transfers.
+        *   `--sender <address>`: who signs the transaction. In the 5a sponsored-tx pattern this is the user; the gas-station address is the gas-sponsor.
     *   The `wot.id` Backend API manages these parameters to optimize for cost and confirmation speed when submitting trust-related transactions.
 
 By leveraging these PTB capabilities, `wot.id` ensures that all on-chain trust operations are performed securely, atomically, and efficiently.
@@ -1010,6 +1037,7 @@ The bootstrap problem represents one of the most critical challenges in decentra
 ### A.1. Multi-Signal Trust Genesis Algorithm
 
 **Core Formula: Weighted Evidence Accumulation**
+
 ```
 Initial_Trust = Σ(Signal_i × Weight_i × Confidence_i × Freshness_i)
 
@@ -1031,6 +1059,7 @@ This algorithm combines multiple independent verification signals, each weighted
 - **Network Behavior**: Monitoring organic relationship formation versus suspicious mass connection patterns
 
 **Automated Red Flag Detection:**
+
 ```
 Suspicion_Score = (
     Rapid_Connection_Rate × 2.0 +
@@ -1045,6 +1074,7 @@ If Suspicion_Score > Threshold: Apply_Trust_Penalty(-20 to -50)
 ### A.3. Network Graph Analysis
 
 **Trust Propagation Models:**
+
 ```
 Propagated_Trust = Σ(Neighbor_Trust_i × Connection_Strength_i × Path_Discount^Distance_i)
 
@@ -1056,6 +1086,7 @@ Where:
 ```
 
 **Sybil Resistance Algorithm:**
+
 ```
 Sybil_Resistance_Score = 1 / (1 + Clustering_Density × Connection_Velocity)
 
@@ -1073,6 +1104,7 @@ Where:
 - **Content Cross-Reference**: Consistent claims and information across verified sources (+10 to +20 trust)
 
 **Verification Hierarchy and Weights:**
+
 ```
 Tier 1: Government/Legal Verification     (Weight: 2.0, Trust: +40 to +60)
 Tier 2: Financial/Professional Systems   (Weight: 1.5, Trust: +25 to +45)
@@ -1084,6 +1116,7 @@ Tier 5: Self-Attestation Claims          (Weight: 0.3, Trust: +2 to +8)
 ### A.5. Temporal Trust Dynamics
 
 **Time-Based Trust Evolution:**
+
 ```
 Trust_Evolution(t) = Initial_Trust × e^(-λt) + Baseline_Trust × (1 - e^(-λt)) + Activity_Bonus(t)
 
@@ -1126,6 +1159,7 @@ Where λ varies by context:
 ### A.7. Context-Aware Seeding Matrices
 
 **Professional Trust Bootstrap:**
+
 ```
 Professional_Trust = (
     LinkedIn_Verification × 0.8 +
@@ -1137,6 +1171,7 @@ Professional_Trust = (
 ```
 
 **Social Trust Bootstrap:**
+
 ```
 Social_Trust = (
     Mutual_Friend_Attestations × 1.0 +
@@ -1148,6 +1183,7 @@ Social_Trust = (
 ```
 
 **Financial Trust Bootstrap:**
+
 ```
 Financial_Trust = (
     Bank_Account_Verification × 2.0 +
@@ -1167,6 +1203,7 @@ Financial_Trust = (
 - **Fraud Detection Networks**: Ensemble models trained on known attack vectors and malicious patterns
 
 **Continuous Learning Architecture:**
+
 ```
 Model_Update_Cycle:
 1. Data_Collection(behavioral_patterns, outcomes)

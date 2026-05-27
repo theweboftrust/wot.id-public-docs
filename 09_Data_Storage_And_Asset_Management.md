@@ -1,15 +1,40 @@
 # 09: Data Storage and Asset Management
 
-> **Current Status: 100% On-Chain Data VALUES (May 2026)**
-> This document outlines wot.id's data storage architecture. **Currently Operational**: W3C DIDs, email→DID mappings, profile creation, on-chain attestations via the `wot_trust` module of the unified `wot_id` package, Health Section bulk CSV import (Dec 2025), unified atom storage for all 15 atom types via a single `store_atom()` entry function (v8 deployed March 11, 2026), and encrypted single-string identity claims including `place_of_birth` and `current_residence` (allowlist + response shape fixed May 6, 2026). The identity registry and attestation system are live on IOTA mainnet Protocol 24 (Starfish consensus) with iota-sdk v1.21.1.
+> **Current Status: 100% On-Chain VALUES (May 2026) — source files stay on the user's own device or cloud; wot.id is not a file-storage provider. See §1 + `docs/01_Project_Overview_And_Principles.md` Principle #4.**
+> This document outlines wot.id's data storage architecture. **Currently Operational**: W3C DIDs, email→DID mappings, profile creation, on-chain attestations via the `wot_trust` module of the unified `wot_id` package (v11 `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299` deployed May 23, 2026 — Move-layer cleanup release (V11-1…V11-14; hardened attestation auth v2, typed governance v2, real trust aggregates, plus 9 body-only fixes); supersedes v10 `0xdfea0e92…` of May 17, 2026 (which added `create_identity_entry` for user-signed identity creation) — see `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md`), Health Section bulk CSV import (Dec 2025), unified atom storage for all 15 atom types via a single `store_atom()` entry function (added in v8), and encrypted single-string identity claims including `place_of_birth` and `current_residence` (allowlist + response shape fixed May 6, 2026). Privacy-level write paths now reject `1` and `4` (v9 cleanup); legacy on-chain rows at those levels remain readable by their owner. **Default-privacy write path is operational** as of 2026-05-26: the `ensure_trust_profile_gas_station` orchestration in `backend/src/handlers/trust_profile.rs` lazily provisions a `TrustProfile` for any `IdentityProfile` that lacks one, then routes `update_privacy_settings` against it (Open-Issues #8 closed — `docs/2026_Code_Work/26-05-26_Default_Privacy_Orchestration.md`). The identity registry and attestation system are live on IOTA mainnet Protocol 26 (Starfish consensus). Backend is CLI-only (CLI v1.23.2 upgraded 2026-05-21; Rust `iota-sdk` Cargo dep removed 2026-05-26 — Open-Issues #12 closed, `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`). FileVault is currently UI-hidden and deferred — see `docs/2026_Code_Work/26-05-21_File_Storage_Status.md` §7. _(2026-05-27 update: Deploy 1 + read-side fix shipped — `26-05-21_File_Storage_Status.md` §12 + `26-05-27_FileVault_Read_Side_Fix.md`. UI re-surfaced; user re-test owed.)_
 
 ## 1. Introduction
 
 This document outlines the wot.id project's comprehensive strategy for data storage and digital asset management. The approach is designed to be secure, decentralized, and user-centric, aligning with the core principles of Self-Sovereign Identity (SSI) and absolute user control.
 
-**Core Architecture Principle: 100% On-Chain Data VALUES**
+**Core Architecture Principle: wot.id Stores VALUES, Not Files**
 
-All identity data VALUES—the actual information that defines a person or entity—are stored 100% on-chain on the IOTA distributed ledger using Move smart contracts. (The Mysticeti BFT consensus structure over a DAG is the *ordering* mechanism; the *storage* itself is the Move-VM object ledger — see `docs/2026_Code_Work/26-04-23_IOTA_Overview` §2.2 for the precise definition.) Supporting document FILES (PDFs, images) may optionally be stored off-chain with cryptographic verification, but the data VALUES themselves are always on the distributed ledger.
+wot.id manages **VALUES** — `first_name = "Alice"`, `glucose = 120`, `passport_no = "X12345"`, `date_of_birth = 1985-03-14` — extracted from documents the user already has. The source documents themselves (PDF lab reports, scans of an ID, CSV exports, photos, etc.) **stay on the user's own device or in their own cloud storage**. wot.id is not, and is not trying to be, a file storage provider.
+
+What lives **100% on-chain** on the IOTA distributed ledger via Move smart contracts are the **encrypted VALUES**: identity claims, health atoms, trust scores, attestation references. (The Mysticeti BFT consensus structure over a DAG is the *ordering* mechanism; the *storage* itself is the Move-VM object ledger — see `docs/2026_Code_Work/26-04-23_IOTA_Overview` §2.2 for the precise definition.)
+
+What binds the on-chain VALUES to the off-chain source documents is the **same client-side encryption key**, derived from the user's BIP-39 mnemonic via HKDF-SHA256: it encrypts at the source, decrypts on chain, and re-wraps for sharing. That key — and the user's possession of it via the mnemonic — is what makes the off-chain-source / on-chain-VALUES split a single coherent, self-sovereign data graph rather than a pile of disconnected fragments.
+
+**Concrete examples** (each follows the same value-extraction pattern):
+
+| Source document (off-chain, user-owned) | Extracted VALUES (on-chain, encrypted) | Move surface |
+|---|---|---|
+| Passport / national ID (PDF or photo on user's device) | `first_name`, `last_name`, `date_of_birth`, `place_of_birth`, `passport_no`, `current_residence` | `wot_identity::EncryptedClaim` |
+| Lab report PDF / CSV export from a health portal | `glucose_level`, `blood_pressure`, `cholesterol`, plus the other 14 atom types | `wot_identity::store_atom(...)` (medical atom_types) |
+| Bank statement / tax document | `account_holder_name`, `tax_id`, etc. | `wot_identity::EncryptedClaim` / `store_atom` (financial atom_types) |
+| Diploma / certification | `degree`, `institution`, `graduation_date` | `wot_identity::store_atom` (education atom_types) |
+
+**The Encrypted Files surface** (`wot_files.move` Move-side, "Encrypted Files" UI-side) is the **edge case** — a *catalog of files the user has chosen to link to their wot.id identity*. It is a separate kind of surface, not an auxiliary layer over value extraction.
+
+A file in the Encrypted Files catalog might correspond to a source document the user *also* extracted atomic values from (e.g. the same passport scan that supplied the `first_name` / `DOB` / `passport_no` atoms in the table above), or it might be standalone with no extracted values at all (a novel, a contract, a photo, an audio recording, anything). Those are independent decisions; the Encrypted Files catalog is its own coherent surface regardless.
+
+What the catalog holds, per file: filename, MIME type, size, category, the source `storage_location` (LOCAL=0 / CLOUD=1 / IPFS=2) and `storage_ref` pointer, plus the user-encrypted DEK that only the user (via their mnemonic) can unwrap. The ciphertext blob itself lives wherever the user chose — Mac folder via the File System Access API, their own cloud, IPFS, etc. — and only the **encrypted DEK + metadata** go on chain.
+
+Use cases for the catalog include: identity-linked file inventory ("what files have I linked to my wot.id?"), verifiable proof of authorship/possession, controlled sharing (re-wrapping the DEK for a recipient), and cross-device recovery of the catalog itself (the user re-derives their mnemonic on a new device and immediately sees what files they've linked).
+
+wot.id is **not** the file's home. wot.id is the file's *catalog and access-control layer*. See §6 of this document and `docs/2026_Code_Work/26-05-21_File_Storage_Status.md`.
+
+This principle is also captured in `docs/01_Project_Overview_And_Principles.md` Principle #4 (the constitutional statement) and `docs/Claude_Primer.md` §17 (the working rule).
 
 ### 1.1. Storage Architecture Overview
 
@@ -175,6 +200,7 @@ The management of data and digital assets within wot.id is guided by several fou
 Identity fields are stored encrypted on-chain using post-quantum resistant encryption:
 
 **On-Chain Storage Structure**:
+
 ```move
 public struct EncryptedIdentityClaim has store, drop {
     claim_type: String,         // "first_name", "date_of_birth", etc.
@@ -196,6 +222,7 @@ public struct EncryptedField has store, drop, copy {
 ```
 
 **Storage Round-Trip**:
+
 ```
 SAVE PATH:
 1. User enters "John" → Frontend encrypts → {v:1, s:1, n:"base64", c:"base64"}
@@ -300,6 +327,7 @@ graph TD
 - ✅ **Schema Authority**: On-chain per-type validation ensures data integrity in multi-client world
 
 **Example: Health Atom stored via v8 `store_atom()`**
+
 ```
 EncryptedAtom {
   atom_type: 1,                    // TYPE_HEALTH
@@ -345,6 +373,7 @@ All identity data VALUES are 100% on-chain. This section describes an optional m
 ### 4.2. Deterministic Linking Mechanism
 
 **On-Chain Anchor** (stored in identity profile's dynamic fields):
+
 ```move
 // v8: Document atoms use universal EncryptedAtom with atom_type=2
 // Stored via: store_atom(profile, atom_type=2, label="passport", ...)
@@ -716,6 +745,7 @@ Asset authenticity and provenance are natively anchored via wot.id's attestation
 > IOTA Notarization SDK needed. See `docs/2026_Code_Work/26-01-03_IOTA_Notarization_vs_wotid.md`
 
 **Governance Integration**:
+
 ```move
 public struct AssetGovernanceProposal has key, store {
     id: UID,
@@ -739,6 +769,7 @@ Consistent with the "Atomic Data Structure" principle:
 *   Users can selectively disclose or share specific fragments of their assets or data, enhancing privacy and control.
 
 **Example - Health Data Fragmentation:**
+
 ```
 Profile Object (On-Chain)
 ├── HealthAtom: Lab Results
