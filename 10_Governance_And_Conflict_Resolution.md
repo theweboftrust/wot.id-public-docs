@@ -1,544 +1,118 @@
 # 10: Governance, Security, and Standards
 
-## 1. Introduction
-
-Effective governance, robust security, and adherence to standards are paramount to the long-term stability, trustworthiness, and decentralized nature of the wot.id ecosystem. This document outlines the principles, mechanisms, and structures designed to ensure fair, transparent, and community-driven governance; a comprehensive security posture; and alignment with key interoperability standards. It also details the project's development principles and future roadmap.
-
-**Architecture Context**:
-Governance in wot.id operates within the broader technical architecture:
-- **Standards Compliance**: See `docs/01_Project_Overview_And_Principles.md` section 1.2 for W3C DID foundation
-- **Identity Architecture**: Governance participants identified by W3C DIDs (primary identifiers)
-- **On-Chain Storage**: Governance proposals and votes stored on IOTA mainnet, see `docs/05_Move_Smart_Contracts.md`
-- **Trust Integration**: Voting power may be weighted by trust scores, see `docs/07_Trust_Architecture_And_Management.md`
-- **No Centralized Database**: All governance data on-chain, aligning with decentralization principles
-
-**Key Principle**: Governance mechanisms extend the core architecture principle that wot.id stores **VALUES** (identity claims, governance proposals, votes, attestations) on chain — not source documents. The PDFs / scans / source materials behind a governance argument stay on the participant's own device or cloud; what goes on chain is the *encoded position* (the value of a vote, the typed change kind of a proposal, the encrypted text of an argument), not the underlying document. See `docs/01_Project_Overview_And_Principles.md` Principle #4 + `docs/Claude_Primer.md` §17.
-
-## 2. Core Governance Principles
-
-The wot.id governance framework is guided by the core principles detailed in `docs/01_Project_Overview_And_Principles.md`, particularly those concerning Community-Driven Governance and Effective Conflict Resolution:
-
-*   **Decentralized Governance**: Governance processes are designed to be fully decentralized, empowering all participants to influence decisions transparently and dynamically. There is no central authority dictating the evolution or operation of the core protocol.
-*   **Transparency**: All governance proposals, discussions, voting records, and conflict resolution proceedings (where privacy permits and for protocol-level issues) should be transparent and accessible to the community.
-*   **Fairness and Equity**: Mechanisms aim to provide fair and equitable participation for all stakeholders, preventing undue influence by any single actor or group.
-*   **Effectiveness and Efficiency**: Processes for decision-making and conflict resolution are intended to be effective in achieving their goals and efficient in their execution.
-*   **Community Integrity**: The governance model seeks to maintain the trust and integrity of the wot.id community by fostering collaboration and providing clear paths for resolving disagreements.
-*   **Accountability**: Participants involved in governance and conflict resolution processes are expected to act responsibly and be accountable for their roles.
-*   **Adaptability (Liquid Governance)**: The system aims for dynamic liquidity, allowing governance mechanisms to evolve and adapt based on community needs, technological advancements, and contextual requirements, as highlighted by the principle of "Dynamic Liquidity" and the mention of "liquid governance" in a "Strict Peer-to-Peer Environment."
-
-## 3. Governance Model
-
-wot.id strives for a decentralized governance model that reflects its peer-to-peer architecture. Key aspects include:
-
-*   **Community-Driven**: The direction and evolution of the wot.id protocol and its core parameters are intended to be guided by its community of users and participants.
-*   **On-Chain and Off-Chain Components**: Governance may involve both on-chain mechanisms (e.g., voting on proposals via Move smart contracts deployed directly on IOTA mainnet — IOTA Rebased runs Move on Layer 1; there is no L2/L1 split as in earlier IOTA architectures) and off-chain discussions and deliberations within the community.
-*   **Liquid Governance Elements**: The concept of "liquid governance" (as mentioned in (`docs/01_Project_Overview_And_Principles.md`) suggests a flexible and adaptive system where participants might delegate voting power or influence, allowing for dynamic representation and efficient decision-making. The specifics of liquid governance mechanisms are an area for ongoing development and refinement.
-*   **Focus on Protocol and Ecosystem Rules**: Governance primarily pertains to the rules of the wot.id protocol, standards, and the overall health of the ecosystem, rather than adjudicating individual user-to-user disputes outside of defined conflict resolution frameworks.
-
-## 4. On-Chain Governance Mechanisms (Move Contracts)
-
-To facilitate transparent and auditable governance processes, `wot.id` leverages Move smart contracts deployed on the IOTA Layer 2, integrating with the **official IOTA Identity Move package**. The implemented governance mechanisms within `wot.id` extension contracts (consistent with the Move architecture in `docs/05_Move_Smart_Contracts.md`) are outlined below:
-
-*   **`GovernanceProposal` Object**: Represents a formal proposal for changes or decisions within the ecosystem. Key fields include:
-    *   `id`: Unique identifier for the proposal.
-    *   `proposer`: DID of the entity submitting the proposal.
-    *   `title`: A concise title for the proposal.
-    *   `description`: Detailed explanation of the proposal, its rationale, and expected impact.
-    *   `votes_for`, `votes_against`: Tallies of votes.
-    *   `voting_power_threshold`: The threshold required for the proposal to pass (could be based on stake, reputation, or other factors).
-    *   `status`: Current state of the proposal (e.g., Proposed, Voting, Passed, Rejected).
-    *   `implementation_plan`: (Optional) Details on how a passed proposal would be implemented.
-    *   `proposed`, `voting_ends`: Timestamps for proposal lifecycle management.
-
-*   **`ConflictCase` Object**: Represents a formal case for conflict resolution. Key fields include:
-    *   `id`: Unique identifier for the conflict case.
-    *   `parties`: DIDs of the parties involved in the conflict.
-    *   `description`: A detailed account of the conflict.
-    *   `evidences`: A collection of evidence submitted by the involved parties (potentially pointers to off-chain data).
-    *   `arbiters`: DIDs of arbiters selected or assigned to resolve the conflict.
-    *   `status`: Current state of the case (e.g., Open, In Progress, Resolved, Appealed).
-    *   `resolution`: (Optional) The outcome or decision of the arbitration.
-    *   `created`, `updated`: Timestamps for case tracking.
-
-These on-chain objects provide a structured and verifiable foundation for key governance activities.
-
-### 4.1. Phase 2: Move Primitives Deployed; Production Usage Deferred
-
-**Current Implementation Status (May 2026)**:
-The Move-side data structures for the governance system are deployed in the unified `wot_id` package's `wot_trust` module (`0x4a71c629…`, v9 May 8, 2026; supersedes v8 `0x14b1e852…`). **The backend REST endpoints and frontend UI for proposals were deleted on 2026-03-07** because they were mock-only and returned fabricated data — see §6 note below and `docs/2026_Code_Work/26-03-07_Dead_Endpoints_Audit.md`. The on-chain structs remain available for any future implementation. Production governance work is **deferred to Q3+** per `docs/2026_Code_Work/26-05-03_2026_Q2_Plan_Update1.md` (Q2 traction is the priority; governance only re-enters scope if a Democratech-style partnership materializes).
-
-**Implemented On-Chain Governance Structures** (Move side only; no API or UI today):
-
-**Implemented Governance Structures**:
-
-```move
-public struct TrustProposal has key, store {
-    id: UID,
-    target_profile_id: address,
-    proposer_id: address,
-    proposal_type: String,
-    proposed_changes: String,
-    required_votes: u64,
-    current_votes: u64,
-    voters: vector<address>,
-    expires_at: u64,
-    is_executed: bool,
-    created_at: u64,
-}
-```
-
-**Operational Features**:
-- **Proposal Creation**: `/api/governance/create-proposal` endpoint operational
-- **Voting System**: `/api/governance/vote` endpoint with transparent tracking
-- **Execution Framework**: Automatic execution of approved proposals
-- **On-Chain Anchoring**: Governance decisions anchored on IOTA mainnet via attestations for immutability
-
-**Integration Architecture**:
-- Official IOTA Identity package provides core identity and controller management
-- wot.id extension contracts implement governance-specific functionality
-- Backend API orchestrates proposal workflows and voting mechanisms
-- Frontend provides intuitive governance interfaces
-
-This represents a significant advancement from the planned governance framework to a fully operational democratic system.
-
-## 5. Decision-Making Process
-
-The process for making decisions regarding protocol upgrades, policy changes, or other significant ecosystem matters is envisioned as follows:
-
-1.  **Proposal Submission**: Any community member (or a member meeting certain criteria, TBD) can submit a `GovernanceProposal` on-chain. This would involve detailing the proposed change and its rationale.
-2.  **Community Discussion (Off-Chain)**: Proposals are expected to be discussed extensively within the community through forums, dedicated discussion platforms, or other communication channels. This phase allows for feedback, refinement, and gauging sentiment.
-3.  **Formal Voting Period**: If a proposal gains sufficient traction, a formal on-chain voting period is initiated. Participants (e.g., token holders, identity holders, or those with delegated voting power in a liquid governance model) cast their votes for or against the `GovernanceProposal`.
-4.  **Tallying and Outcome**: At the end of the voting period, votes are tallied. If the proposal meets the predefined `voting_power_threshold` and other criteria (e.g., quorum), it is considered passed. Otherwise, it is rejected.
-5.  **Implementation**: Passed proposals move to an implementation phase, as outlined in the `implementation_plan` (if provided).
-
-The specifics of voter eligibility, voting weight, and proposal thresholds will be defined as the governance model matures.
-
-### 5.1. Governance Proposal Lifecycle Visualization
-
-The complete lifecycle of a governance proposal from submission to implementation:
-
-```mermaid
-stateDiagram-v2
-    [*] --> Draft: Community Member Submits
-    
-    Draft --> Discussion: Proposal Published
-    Note right of Draft: On-chain GovernanceProposal<br/>created with details
-    
-    Discussion --> Voting: Community Approval<br/>(Minimum threshold)
-    Discussion --> Withdrawn: Proposer Withdraws
-    Note right of Discussion: Off-chain forums<br/>Feedback & refinement
-    
-    Voting --> Passed: Votes For > Threshold
-    Voting --> Rejected: Votes Against or<br/>Insufficient quorum
-    Note right of Voting: On-chain voting period<br/>(e.g., 7-14 days)
-    
-    Passed --> Implementation: Execution Approved
-    Note right of Passed: Meets voting_power_threshold<br/>and quorum requirements
-    
-    Implementation --> Executed: Changes Applied
-    Implementation --> Failed: Execution Error
-    Note right of Implementation: Protocol upgrade or<br/>policy change enacted
-    
-    Executed --> [*]: Complete
-    
-    Rejected --> [*]: Archived
-    Withdrawn --> [*]: Cancelled
-    Failed --> Appeal: Community Request
-    Appeal --> Discussion: Revised Proposal
-    
-    style Draft fill:#3498db,color:#fff
-    style Discussion fill:#f39c12
-    style Voting fill:#9b59b6,color:#fff
-    style Passed fill:#2ecc71,color:#fff
-    style Rejected fill:#e74c3c,color:#fff
-    style Executed fill:#16a085,color:#fff
-```
-
-**Proposal States:**
-- **Draft**: Initial submission with proposal details
-- **Discussion**: Community feedback period (off-chain)
-- **Voting**: Formal on-chain voting period (7-14 days)
-- **Passed**: Met threshold and quorum requirements
-- **Rejected**: Failed to meet requirements or voted down
-- **Implementation**: Approved changes being executed
-- **Executed**: Successfully implemented on protocol
-- **Failed**: Execution encountered errors
-- **Withdrawn**: Proposer cancelled before voting
-- **Appeal**: Failed proposal under reconsideration
-
-### 5.2. Reputation-Weighted Voting Mechanism
-
-The voting system integrates trust scores and reputation for democratic yet quality-driven governance:
-
-```mermaid
-graph TB
-    subgraph "Voter Identity"
-        VOTER[👤 Voter DID<br/>Identity Verified]
-        REP[⭐ Reputation Score<br/>-100 to +100]
-        TRUST[🤝 Trust Network<br/>Attestations & Context]
-    end
-    
-    subgraph "Voting Power Calculation"
-        BASE[1️⃣ Base Vote: 1.0]
-        MULTIPLIER[📊 Trust Multiplier<br/>0.5x to 2.0x]
-        CONTEXT[🎯 Context Weight<br/>Topic-Specific]
-        POWER[💪 Final Voting Power]
-    end
-    
-    subgraph "Proposal Voting"
-        PROP[📜 Governance Proposal<br/>On-Chain Object]
-        VOTE_FOR[✅ Vote FOR<br/>Weighted Count]
-        VOTE_AGAINST[❌ Vote AGAINST<br/>Weighted Count]
-        THRESHOLD[🎯 Threshold Check<br/>Required Votes]
-    end
-    
-    subgraph "Outcome"
-        PASS[✅ PASSED<br/>Execute Changes]
-        REJECT[❌ REJECTED<br/>Archive Proposal]
-        QUORUM[⚠️ QUORUM FAILED<br/>Insufficient Participation]
-    end
-    
-    VOTER --> REP
-    VOTER --> TRUST
-    
-    REP --> MULTIPLIER
-    TRUST --> CONTEXT
-    
-    BASE --> POWER
-    MULTIPLIER --> POWER
-    CONTEXT --> POWER
-    
-    POWER --> PROP
-    
-    PROP --> VOTE_FOR
-    PROP --> VOTE_AGAINST
-    
-    VOTE_FOR --> THRESHOLD
-    VOTE_AGAINST --> THRESHOLD
-    
-    THRESHOLD --> |For > Threshold<br/>& Quorum Met| PASS
-    THRESHOLD --> |Against > For<br/>or Below Threshold| REJECT
-    THRESHOLD --> |Total < Quorum| QUORUM
-    
-    style VOTER fill:#2ecc71,color:#fff
-    style REP fill:#f39c12
-    style POWER fill:#e74c3c,color:#fff
-    style PASS fill:#16a085,color:#fff
-    style REJECT fill:#c0392b,color:#fff
-```
-
-**Voting Power Formula:**
-
-```
-Voting Power = Base Vote (1.0) × Trust Multiplier × Context Weight
-
-Where:
-- Trust Multiplier = 0.5x to 2.0x based on reputation (-100 to +100)
-- Context Weight = 0.8x to 1.5x based on topic expertise
-- Final Power Range: 0.4 to 3.0 votes per participant
-```
-
-**Reputation Tiers:**
-- **+75 to +100**: Highly Trusted → 2.0x multiplier
-- **+25 to +75**: Trusted → 1.5x multiplier
-- **-25 to +25**: Neutral → 1.0x multiplier
-- **-75 to -25**: Low Trust →  0.75x multiplier
-- **-100 to -75**: Distrusted → 0.5x multiplier
-
-**Benefits:**
-- ✅ **Merit-Based**: Rewards consistent positive contributions
-- ✅ **Sybil Resistance**: New identities have lower voting power
-- ✅ **Context-Aware**: Domain experts have more influence in their field
-- ✅ **Democratic**: Everyone can participate, weight reflects reputation
-- ✅ **Transparent**: All calculations on-chain and auditable
-
-## 6. Conflict Resolution Process
-
-wot.id aims to provide a clear and fair process for resolving conflicts that may arise within the ecosystem, particularly those that cannot be resolved directly between peers or through community consensus. The `ConflictCase` object serves as the on-chain record for such disputes.
-
-1.  **Case Submission**: An aggrieved party can initiate a conflict resolution process by creating a `ConflictCase` object on-chain, detailing the nature of the dispute and identifying the involved parties.
-2.  **Evidence Submission**: All involved parties have the opportunity to submit evidence to support their positions. This evidence may be stored off-chain with hashes or pointers recorded in the `ConflictCase`.
-3.  **Arbiter Selection/Assignment**: A crucial step is the selection or assignment of neutral arbiters. The mechanism for arbiter selection (e.g., community vote, staking-based reputation, random selection from a pool of qualified arbiters) is a key aspect of the governance design.
-4.  **Arbitration**: Arbiters review the case details, evidence, and arguments from all parties. They may facilitate mediation or conduct a more formal review.
-5.  **Resolution and Enforcement**: Based on their findings, arbiters issue a `resolution`. If the resolution involves on-chain actions (e.g., transfer of digital assets, modification of a reputation score), these could potentially be enforced via smart contract logic, subject to the capabilities of the system.
-6.  **Appeal Process (Optional)**: The governance framework may include an appeal process for parties dissatisfied with an initial resolution.
-
-The goal is to provide a decentralized, transparent, and fair mechanism for dispute resolution that maintains trust in the ecosystem, as stated in Core Principle #7: "Effective Conflict Resolution" (a core project principle).
-
-### 6.1. Conflict Resolution Process Flow
-
-The complete flow for resolving disputes within the wot.id ecosystem:
-
-```mermaid
-sequenceDiagram
-    participant Party1 as 👤 Aggrieved Party
-    participant IOTA as ⛓️ IOTA Mainnet
-    participant Party2 as 👥 Other Parties
-    participant Community as 🏛️ Community Pool
-    participant Arbiters as ⚖️ Selected Arbiters
-    participant Smart as 📝 Move Contracts
-    
-    Note over Party1,Smart: Phase 1: Case Submission
-    
-    Party1->>IOTA: Create ConflictCase Object
-    Note right of Party1: Details: parties, description,<br/>initial evidence
-    IOTA-->>Party1: Case ID Generated
-    IOTA->>Party2: Notification of Case
-    
-    Note over Party1,Smart: Phase 2: Evidence Collection
-    
-    Party1->>IOTA: Submit Evidence
-    Note right of Party1: Documents, attestations,<br/>transaction records
-    Party2->>IOTA: Submit Counter-Evidence
-    Note right of Party2: Response, refutation,<br/>supporting data
-    
-    IOTA->>Smart: Update ConflictCase
-    Smart-->>IOTA: Evidence Recorded
-    
-    Note over Party1,Smart: Phase 3: Arbiter Selection
-    
-    IOTA->>Community: Request Arbiter Candidates
-    Community-->>IOTA: Pool of Qualified Arbiters
-    
-    IOTA->>IOTA: Selection Algorithm
-    Note right of IOTA: Reputation-based,<br/>random, or voted
-    
-    IOTA->>Arbiters: Assign Case
-    Arbiters-->>IOTA: Acceptance Confirmation
-    
-    Note over Party1,Smart: Phase 4: Arbitration
-    
-    Arbiters->>IOTA: Review Evidence
-    Arbiters->>Party1: Request Clarifications
-    Party1-->>Arbiters: Additional Info
-    Arbiters->>Party2: Request Clarifications
-    Party2-->>Arbiters: Additional Info
-    
-    Arbiters->>Arbiters: Deliberation Period
-    Note right of Arbiters: Review, discussion,<br/>consensus building
-    
-    Note over Party1,Smart: Phase 5: Resolution
-    
-    Arbiters->>IOTA: Submit Resolution
-    Note right of Arbiters: Decision, rationale,<br/>enforcement actions
-    
-    IOTA->>Smart: Execute Resolution
-    
-    alt Resolution Involves Asset Transfer
-        Smart->>Smart: Transfer Digital Assets
-        Smart-->>Party1: Assets Transferred
-    else Resolution Modifies Reputation
-        Smart->>Smart: Update Trust Scores
-        Smart-->>Party1: Reputation Adjusted
-    else Resolution Requires Action
-        Smart->>Party2: Action Required
-        Party2-->>Smart: Compliance Confirmed
-    end
-    
-    IOTA->>Party1: Resolution Notification
-    IOTA->>Party2: Resolution Notification
-    
-    Note over Party1,Smart: Phase 6: Appeal (Optional)
-    
-    alt Party Dissatisfied
-        Party1->>IOTA: File Appeal
-        IOTA->>Community: Request Appeal Review
-        Community->>Arbiters: New Arbiter Panel
-        Note right of Arbiters: Higher-tier arbiters<br/>or community vote
-    else Both Parties Accept
-        Party1->>IOTA: Accept Resolution
-        Party2->>IOTA: Accept Resolution
-        IOTA->>Smart: Mark Case Closed
-    end
-    
-    Note over Party1,Smart: Resolution Complete
-```
-
-**Key Features:**
-
-**On-Chain Transparency:**
-- ✅ All case submissions, evidence, and resolutions recorded on IOTA mainnet
-- ✅ Cryptographic integrity of evidence via SHA-256 hashing
-- ✅ Immutable audit trail for all proceedings
-
-**Arbiter Selection Methods:**
-1. **Reputation-Based**: Highest-trust community members selected
-2. **Random Selection**: From pool of qualified arbiters (Sybil-resistant)
-3. **Community Vote**: Stakeholders elect arbiters for high-stakes cases
-4. **Specialized Expertise**: Context-specific arbiters for technical disputes
-
-**Enforcement Mechanisms:**
-- **Automatic Execution**: Smart contracts enforce resolutions programmatically
-- **Asset Transfers**: Move objects transferred per resolution
-- **Reputation Adjustments**: Trust scores updated based on findings
-- **Access Restrictions**: Malicious actors flagged or suspended
-- **Financial Penalties**: Staked assets redistributed if applicable
-
-**Appeal Process:**
-- **Single Appeal**: One level of appeal to higher-tier arbiters
-- **Community Override**: Supermajority can override in exceptional cases
-- **Time Limits**: 14-day window for filing appeals
-- **Final Resolution**: No further appeals after second-tier decision
-
-**Privacy Considerations:**
-- Sensitive evidence stored off-chain with on-chain hashes
-- Private arbitration option for personal disputes
-- Public records for protocol-level governance issues
-- Redaction mechanisms for personally identifiable information
-
-## 7. Community Participation and Integrity
-
-Active and informed community participation is vital for the health and legitimacy of the wot.id governance model. Mechanisms will be explored to:
-
-*   **Encourage Participation**: Lowering barriers to participation in discussions, proposal submissions, and voting.
-*   **Educate Participants**: Providing clear information and resources about governance processes and proposals.
-*   **Foster Constructive Dialogue**: Promoting respectful and productive discussions within the community.
-*   **Maintain Integrity**: Implementing safeguards against manipulation, Sybil attacks, or other behaviors that could undermine the integrity of governance processes. This includes ensuring the authenticity of participants where relevant (e.g., through "Guaranteed Human Identity" principles for certain roles or voting rights).
-
-## 8. Security Threats and Mitigations
-
-A robust security architecture is foundational to wot.id, directly supporting its core principles of user sovereignty and trust.
-
-### 8.1. Threat Model
-
-The threat model considers various actors and attack vectors:
-
-*   **Malicious Actors on the Network**: Entities attempting to compromise the system through on-chain or off-chain attacks.
-    *   **On-Chain Attacks**: Exploiting smart contract vulnerabilities, manipulating governance, Sybil attacks.
-    *   **Off-Chain Attacks**: Intercepting P2P communication, social engineering, compromising user devices or backend infrastructure.
-*   **Malicious Insiders**: A compromised backend service or a rogue developer introducing vulnerabilities.
-*   **Compromised User Devices**: Attackers gaining control of a user's device to steal private keys or manipulate the user's agent.
-*   **Quantum Adversaries**: Future actors with access to quantum computers capable of breaking classical cryptography.
-
-### 8.2. Security Mitigations and Best Practices
-
-*   **Smart Contract Security (Move)**:
-    *   **Leveraging Move's Safety**: Utilizing Move's resource safety, type system, and ownership model to prevent common vulnerabilities like re-entrancy, integer overflows, and unauthorized resource access.
-    *   **Principle of Least Privilege**: Implementing the capabilities pattern (`AdminCap`, `MintCap`, etc.) to ensure functions can only be called by authorized entities.
-    *   **Audits and Formal Verification**: Critical smart contracts, especially those managing identity, assets, and governance, are targeted for formal security audits and, where feasible, formal verification to mathematically prove their correctness.
-*   **P2P Communication Security**:
-    *   **End-to-End Encryption (E2EE)**: All P2P communication is secured using the Signal Protocol, providing forward secrecy and post-quantum resistance (via PQXDH).
-    *   **VC-Gated Handshakes**: Requiring peers to present a "Verified Human" VC before establishing a communication channel mitigates spam and unsolicited contact.
-*   **Backend and API Security**:
-    *   **Input Validation**: Rigorous validation of all data received from clients or external systems to prevent injection attacks and malformed data processing.
-    *   **Authentication and Authorization**: Protecting API endpoints with robust authentication mechanisms and ensuring requests are properly authorized.
-    *   **Secure Infrastructure**: Following best practices for secure deployment, including network segmentation, firewalls, and regular security patching.
-*   **Frontend and User Security**:
-    *   **No Private Key Handling**: The frontend **never** handles or stores user private keys. All cryptographic signing operations are delegated to the user's wallet extension (via `@iota/dapp-kit`), which runs in a sandboxed environment.
-    *   **Secure Dependencies**: Regularly auditing and updating frontend dependencies to mitigate supply chain attacks.
-*   **Data Storage Security**:
-    *   **Off-Chain Encryption**: Users or applications are responsible for encrypting sensitive data *before* storing it in off-chain systems like IPFS.
-    *   **On-Chain Integrity**: On-chain records store only cryptographic hashes or content identifiers (CIDs) of off-chain data, ensuring its integrity and verifiability.
-*   **Post-Quantum Cryptography (PQC) Readiness**:
-    *   **Crypto-Agility**: The system is designed to be crypto-agile, allowing for the transition to new cryptographic algorithms as standards evolve.
-    *   **Hybrid Approach**: Employing a hybrid strategy where PQC algorithms (CRYSTALS-Dilithium, Kyber) are used for off-chain security (E2EE, VC signatures), while relying on IOTA Move VM-supported classical schemes (Ed25519) for on-chain authentication until on-chain PQC verification is available. This is a critical security consideration detailed in `docs/07_Trust_Architecture_And_Management.md`.
-
-## 9. Adopted Standards and Interoperability
-
-wot.id is committed to leveraging established and emerging standards to foster interoperability and build upon a globally recognized foundation.
-
-### 9.1. Adopted Standards
-
-*   **W3C Decentralized Identifiers (DIDs)**: Core to the wot.id identity model. Users are identified by DIDs, specifically `did:iota:<object-id>`, ensuring a decentralized and universally resolvable identifier system. This is consistently referenced across architecture documents, including `docs/01_Project_Overview_And_Principles.md` (Principle 3.2.9: IOTA-Native and W3C-Compliant).
-*   **W3C Verifiable Credentials (VCs)**: The structure and concepts of Verifiable Credentials are foundational for issuing, holding, and verifying claims within wot.id. The Move contract architecture (e.g., `Credential` and `Proof` objects as detailed in `docs/05_Move_Smart_Contracts.md`) reflects this alignment, enabling standardized, interoperable attestations of information.
-*   **IOTA Standards and Practices**: As an IOTA-native project, wot.id adheres to the standards, protocols, and best practices of the IOTA Rebased ecosystem (post-May 2025), particularly concerning the use of the IOTA distributed ledger, Move smart contracts on Layer 1, and Programmable Transaction Blocks (PTBs).
-*   **Post-Quantum Cryptography (PQC) Standards (NIST)**: wot.id aims for crypto-agility and future-proof security by preparing for and integrating NIST-standardized PQC algorithms (e.g., CRYSTALS-Dilithium, CRYSTALS-Kyber) for digital signatures and key exchange mechanisms, as detailed in `docs/06_P2P_Communication.md` and Technical Design Principle #7.
-
-### 9.2. Interoperability Strategy
-
-*   **Alignment with Trust over IP (ToIP) Foundation**: wot.id demonstrates strong philosophical and technical alignment with the ToIP model (`docs/01_Project_Overview_And_Principles.md`). This includes:
-    *   Embracing the dual-stack model (Technology + Governance).
-    *   Mapping to ToIP's four-layer architecture (Support, Spanning, Tasks, Applications).
-    *   Committing to the development of a formal `wot.id` Trust Spanning Protocol (TSP) to solidify Layer 2 interoperability, as highlighted in `docs/01_Project_Overview_And_Principles.md`.
-*   **Semantic Interoperability**: The planned `ContextRegistry` and the consistent use of URI-based context identifiers in various data structures (e.g., `TrustRelationship`, `ClaimTrust`) are designed to promote clear, unambiguous meaning and semantic interoperability across different systems and applications.
-*   **Modular Design**: The architecture's modularity, with clear separation of concerns (e.g., `identity`, `credentials`, `governance` modules in Move), facilitates easier integration with other ToIP-compliant systems and components.
-*   **Standardized Data Formats**: Adherence to W3C VC data models and other relevant standards ensures that data exchanged by wot.id can be understood and processed by other compliant systems.
-
-## 10. Development Principles and Best Practices
-
-The development of wot.id is guided by a set of core principles and best practices to ensure a high-quality, secure, and maintainable system:
-
-*   **Core Software Engineering Principles**:
-    *   **Modularity and Composability**: Designing components that are independent, reusable, and can be combined to build complex functionalities (Ref: Technical Design Principle #6: Atomic Data Structure & Modularity).
-    *   **Readability and Maintainability**: Writing clear, well-documented code that is easy to understand, modify, and debug.
-    *   **Testability**: Ensuring code is structured to facilitate comprehensive unit, integration, and end-to-end testing.
-    *   **Scalability and Performance**: Designing the system to handle growth in users and data efficiently (aligns with Technical Design Principle #3: Real-Time, Low-Cost Transactions).
-    *   **Reusability**: Creating components and libraries that can be leveraged across different parts of the system or in future projects.
-    *   **Clean UI Asset Management**: When incorporating or migrating UI assets (e.g., CSS/SCSS from previous project iterations or external sources), a "clean slate" approach is mandatory. This involves:
-        *   Identifying and migrating only atomic, modular UI fragments (e.g., specific CSS/SCSS files or components).
-        *   Manually reviewing each asset to ensure no legacy selectors, outdated dependencies, or non-compliant logic is carried forward.
-        *   Strictly prohibiting the porting of legacy JavaScript/TypeScript logic, or remnants from unrelated technology stacks (e.g., EVM, AppKit, Ceramic), unless it is 100% compliant with current wot.id principles and thoroughly reviewed.
-        *   Utilizing linters and static analysis tools to verify that migrated or new frontend assets do not contain legacy imports or deprecated patterns.
-        *   Documenting the rationale and source for any migrated UI assets, potentially within a dedicated `styles/README.md` or equivalent.
-*   **Security and Privacy by Design**: Integrating security and privacy considerations into every stage of the development lifecycle, from architecture design to implementation and deployment (Ref: Technical Design Principle #5). This includes threat modeling, secure coding practices, and data minimization.
-*   **User-Centricity**: Prioritizing the needs and experience of the end-user in all design and development decisions, aiming for intuitive and empowering interactions (Ref: `docs/08_Frontend_And_User_Experience.md`).
-*   **Comprehensive Testing**: Implementing a robust testing strategy that includes unit tests, integration tests, end-to-end tests, and security testing to ensure reliability and correctness.
-*   **Thorough Documentation**: Maintaining up-to-date and comprehensive documentation for all aspects of the system, including architecture, APIs, and user guides.
-*   **Tech Stack Specific Practices**:
-    *   **Move**: Adhering to idiomatic Move development patterns, leveraging Move's resource safety features, and aiming for formal verification of critical smart contracts where feasible (as detailed in `docs/05_Move_Smart_Contracts.md`).
-    *   **Rust**: Utilizing idiomatic Rust, focusing on safety through ownership and borrowing, robust error handling, and performance optimization where necessary (as detailed in `docs/04_Backend.md`).
-    *   **Next.js**: Employing component-based architecture, effective state management strategies, and leveraging Next.js features like Server-Side Rendering (SSR) or Static Site Generation (SSG) for optimal performance and UX (Ref: `docs/08_Frontend_And_User_Experience.md`).
-
-## 11. Technical Design Principles Enforcement
-
-The wot.id project actively enforces its core Technical Design Principles throughout its lifecycle:
-
-1.  **Modularity and Composability**: Achieved through distinct Move modules within the unified `wot_id` package, a single Backend API (the formerly-separate Identity Service was retired and inlined on 2026-03-07 — see `docs/2026_Code_Work/26-03-07_Identity_Service.md`), and a component-based frontend.
-2.  **Security and Privacy by Design**: Implemented via post-quantum hybrid encryption (X25519 + ML-KEM-768) throughout the identity stack, BIP-39 client-side key custody, secure key management, input validation, and the 3-band privacy model with `PrivacyAccessGrant`-based time-limited access (v9 May 2026).
-3.  **Decentralization and User Sovereignty**: Core to the architecture, with users controlling their DIDs, data, and participation in governance.
-4.  **Interoperability and Standardization**: Pursued through adherence to W3C DIDs/VCs, ToIP alignment, and a planned Trust Spanning Protocol.
-5.  **Resilience and Fault Tolerance**: Addressed via robust error handling, process isolation, and design for distributed systems.
-6.  **Rigorous Testing and Validation**: Enforced through a multi-layered testing strategy and planned security audits.
-7.  **Crypto-Agility and Future-Proofing**: Addressed by planning for PQC algorithm transitions and designing for adaptable cryptographic components.
-8.  **Simplicity and Clarity**: Striving for understandable code, clear APIs, and well-defined system boundaries.
-9.  **Comprehensive Documentation**: Evidenced by the ongoing effort to create a definitive set of documentation in the `docs/` directory.
-10. **Performance and Scalability**: Considered in choices of technology (Rust, IOTA L2) and architectural patterns.
-11. **Ethical Considerations and Responsible Innovation**: Guiding decisions on data handling, algorithmic bias, and the potential impact of the technology, as detailed in `docs/07_Trust_Architecture_And_Management.md` (Section 8).
-
-## 12. Project Roadmap and Future Considerations
-
-This roadmap outlines the planned phases for the wot.id project, integrating future considerations for governance. It is a living document and may evolve based on research, development progress, and community feedback.
-
-### 12.1. Project Roadmap and Milestones
-
-*   **Phase 1: Foundation (✅ COMPLETED)**
-    *   Establishment of core project principles and technical design guidelines.
-    *   Development of foundational Move smart contracts for DIDs, VCs, and basic trust objects.
-    *   Implementation of the core Backend API (originally split into Backend + Identity Service; the Identity Service was retired and inlined on 2026-03-07).
-    *   Initial prototype of the frontend user interface.
-    *   Consolidation and creation of comprehensive project documentation.
-    *   Basic governance and conflict resolution framework design.
-*   **Phase 2: Expansion & Protocol Solidification (✅ COMPLETED)**
-    *   ✅ Official IOTA Identity Move package integration (v1.6.0-beta.3)
-    *   ✅ Advanced governance mechanisms implemented and operational
-    *   ✅ On-chain attestation anchoring for governance decisions
-    *   ✅ Democratic proposal-based governance with voting and execution
-    *   Full implementation and testing of the `wot.id` Trust Spanning Protocol (TSP).
-    *   Creation of community tools and SDKs for developers.
-    *   Pilot programs and focused community testing initiatives.
-    *   Refinement of UX/UI based on user feedback and testing.
-    *   Expansion and operationalization of the Context Registry.
-    *   Commencement of formal security audits for critical components.
-*   **Phase 3: Ecosystem Growth and Maturation (Future)**
-    *   Broader community engagement and efforts towards wider adoption.
-    *   Integration with other digital trust ecosystems and ToIP-compliant solutions.
-    *   Development of advanced Layer 4 trust applications built on wot.id.
-    *   Establishment of a formal wot.id foundation or Decentralized Autonomous Organization (DAO) for long-term stewardship.
-    *   Ongoing research and integration of advanced privacy-preserving technologies (e.g., expanded use of Zero-Knowledge Proofs).
-    *   Continuous improvement of the platform based on community needs, technological advancements, and evolving standards.
-
-### 12.2. Future Governance Considerations
-
-The wot.id governance model is expected to evolve over time. Areas for future consideration and development include:
-
-*   **Refinement of Liquid Governance Mechanisms**: Detailing the specific mechanics of vote delegation, proxy voting, or other liquid governance features.
-*   **Reputation Systems in Governance**: Exploring how on-chain reputation (derived from trustworthy behavior and contributions) could influence voting power or eligibility for governance roles.
-*   **Treasury Management**: If a community treasury or development fund is established, defining governance processes for its allocation and use.
-*   **Scalability of Governance**: Ensuring that governance processes can scale effectively as the wot.id network and community grow.
-*   **Cross-Chain Governance Interactions**: If wot.id interoperates with other networks, considering how governance decisions might be coordinated or recognized across different ecosystems.
+*As of 2026-10-03. The public version of the foundational document of the same name: governance as designed and as built, the threat model and what the architecture does and does not protect, the standards followed, and the roadmap without dates. General mechanism, no implementation detail.*
 
 ---
 
-> **Note (2026-03-07):** The governance proposal system described in this document has Move contract support (`TrustProposal` struct and voting functions in `wot_trust.move`, deployed on mainnet) but no backend API or frontend UI. The REST endpoints that were planned for Phase 2 (August 2025) were mock implementations returning fabricated data and were deleted on 2026-03-07. The IOTA Notarization SDK was evaluated in January 2026 and explicitly rejected — wot.id's native attestation system provides a superset of notarization functionality. See `docs/2026_Code_Work/26-03-07_Dead_Endpoints_Audit.md` and `docs/2026_Code_Work/26-01-03_IOTA_Notarization_vs_wotid.md` for details.
+## 1. Introduction
 
-Continuous community feedback and adaptation will be essential to ensure the governance model remains effective, fair, and aligned with the core principles of wot.id.
+Three subjects share this page because the internal document joins them: how decisions about wot.id are meant to be made, how the system is protected and where that protection ends, and which standards it follows. On the first subject most of what follows is design; on the second it is the running system; on the third it is a mix, stated as such.
+
+## 2. Core Governance Principles
+
+The aims: decentralised governance with no central authority over the protocol's evolution; transparency of proposals, votes and proceedings; fairness; effectiveness; community integrity; accountability; and adaptability. These are design aims consistent with the first principles of [01](01_Project_Overview_And_Principles.md) §1.0; the implementation state is building blocks in the contracts and nothing in the app (§4).
+
+## 3. Governance Model
+
+Community-driven, with on-chain votes on the ledger and off-chain discussion, possibly with delegation of voting power — described as the intended model. Governance would concern the protocol's rules and the ecosystem's health, not individual disputes between users.
+
+## 4. On-Chain Governance Mechanisms (Move Contracts)
+
+The trust module of the contracts holds typed proposals about a trust profile — create, vote, execute — bound to their proposer and their target, so that a vote cannot be cast in another's name and a proposal cannot be executed against a profile it does not name ([05](05_Move_Smart_Contracts.md) §5.3). The wider governance objects the internal document sketches — a general proposal, a conflict case — do not exist in the contracts.
+
+### 4.1. Phase 2: Move Primitives Deployed; Production Usage Deferred
+
+The building blocks are deployed and callable; no server route and no app surface uses them. An earlier mock governance interface was deleted in March 2026 because it showed fabricated data. Governance is deferred until it becomes a strategic priority; no date is given.
+
+## 5. Decision-Making Process
+
+Envisioned: a proposal on the ledger, discussion in the community, a formal voting period, tallying against a threshold, implementation. Voter eligibility, voting weight and thresholds are to be defined as the model matures. Nothing of this runs today.
+
+### 5.1. Governance Proposal Lifecycle Visualization
+
+Design.
+
+### 5.2. Reputation-Weighted Voting Mechanism
+
+Design. No voting surface exists, and trust is not measured today ([07](07_Trust_Architecture_And_Management.md)).
+
+## 6. Conflict Resolution Process
+
+Design only: a dispute recorded on the ledger with its parties and evidence, arbiters selected by a mechanism to be defined, a resolution, an optional appeal. No contract object, no server route and no app surface exist for it.
+
+## 7. Community Participation and Integrity
+
+Lowering the barriers to participation, educating participants, fostering constructive dialogue, and safeguarding against manipulation — including verified human identity for roles where it matters — are the stated aims for the community around a governance that does not yet run.
+
+## 8. Security Threats and Mitigations
+
+### 8.1. Threat Model
+
+Malicious actors on the network, on the ledger and off it; a compromised server or a rogue insider; compromised user devices; and future quantum adversaries. [02](02_System_Architecture.md) §10.9 says, case by case, what holds and what does not.
+
+### 8.2. Security Mitigations and Best Practices
+
+**What the architecture guarantees** — a guarantee holds whatever wot.id wants, because wot.id lacks the key, the data or the power to break it:
+
+- **Your private key is created on your device and never sent.** No server route accepts it. The passkey backup on the ledger is ciphertext under a secret only your passkey can produce.
+- **wot.id cannot sign as you.** Every change to your identity, details, vouches, files or recovery settings needs your signature; wot.id's signature pays the fee and authorises nothing else.
+- **wot.id cannot read what you encrypt.** Details, messages, files and your Mailbox are encrypted on your device before they leave it. Under legal compulsion, what wot.id can hand over is ciphertext and the metadata of [02](02_System_Architecture.md) §1.1.
+- **Captured ciphertext resists a quantum computer.** Every key delivery combines X25519 with ML-KEM-768.
+- **wot.id cannot restore your identity, nor take it over through recovery.** It holds no copy of your key, no guardian share and no recovery code.
+- **What you signed stays signed.** A transaction on the ledger is permanent and attributable to its signer.
+- **A vouch about you is yours to erase**, and the erasure is final.
+
+**Where the guarantees end:**
+
+- **The app itself is served by wot.id.** Every guarantee assumes the app you run is the app wot.id means to ship. The source is not published, so you cannot compare the served code with a published build. This is the largest trust you place in wot.id; nothing is built yet that removes it.
+- **wot.id can upgrade the contracts**, under the ledger's compatible policy, with a key kept offline; each upgrade is a public transaction ([05](05_Move_Smart_Contracts.md) §6.1). "Nobody can move your identity" is true of the contracts as deployed; an upgrade could change that, in public.
+- **The keys on your device** are as safe as the device: wrapped under your passkey when you have one, protected only by the device when you do not. Malware on a device you are using can act as you while it is there.
+- **The passkey backup is as strong as the passkey**: whoever can use it, on any device where your keychain has synced it, can open the backup. If you want no third party involved, back up the 24 words instead.
+- **The ledger shows structure**: who vouched for whom and when, whom you admitted, your wallet's history including that wot.id paid its fees, file sizes and categories, the shape of your recovery settings, when offline messages were left for you.
+- **Some things cannot be taken back**: admission to your circles; past messages if your key ever leaks, since Talk has no forward secrecy; a leaked private key, since there is no way today to move an identity to a new key.
+- **wot.id's servers are a dependency today**: the hosted app, the fee payment, the live-message relay and the cloud copies. If they stopped, what is on the ledger would remain and your key would still open it; what would end is those four things and sign-in sessions.
+
+**How the system is built to these ends:** contracts in a language whose ownership model prevents whole classes of bugs, with authorisation by the transaction's signer; end-to-end encryption and signed envelopes in Talk; sessions required on every protected route, an origin allow-list, rate limits, validated inputs, and logs without plaintext e-mail or tokens; keys derived and held in the browser, never at the server; content encrypted before it leaves the device; a crypto-agile design with hybrid post-quantum key delivery, classical signatures until the ledger supports post-quantum ones; weekly dependency audits. Formal security audits of the contracts are a target, not a completed step.
+
+## 9. Adopted Standards and Interoperability
+
+### 9.1. Adopted Standards
+
+- **W3C Decentralized Identifiers** — the idea: `did:wot:0x…` names an identity object, controlled by a key. The DID document format is not served.
+- **W3C Verifiable Credentials** — the concept informs the design; a vouch is a ledger record, not a verifiable credential, and no credential format is issued.
+- **IOTA Rebased standards and practices** — Move on the base layer, programmable transaction blocks, sponsored transactions.
+- **NIST post-quantum standards** — ML-KEM-768 (FIPS 203) in every key delivery today; post-quantum signatures when the ledger supports them.
+
+### 9.2. Interoperability Strategy
+
+Alignment with the Trust over IP model ([01](01_Project_Overview_And_Principles.md) §5); a formal trust-spanning protocol, a context registry and standard data formats are design intentions. No integration with another identity system, social network or credential system exists today.
+
+## 10. Development Principles and Best Practices
+
+Modularity, readability, testability, scalability, reusability; design decisions documented before code; every change gated by the project's build and test checks; a weekly dependency audit. The source code is not published; the contracts are readable on the ledger as deployed.
+
+## 11. Technical Design Principles Enforcement
+
+Modularity through distinct contract modules, one server and a component-based app; security and privacy by design through hybrid post-quantum encryption, client-side key custody and the three privacy bands; decentralisation and user sovereignty at the core; interoperability pursued through the standards of §9; resilience, rigorous testing, crypto-agility, and simplicity as working rules.
+
+## 12. Project Roadmap and Future Considerations
+
+### 12.1. Project Roadmap and Milestones
+
+Completed: the foundation — principles, contracts, one server, the app, the documentation. Partly done: on-chain vouches are real and live; governance exists as building blocks without an interface; the official IOTA identity framework was evaluated and not adopted. Ahead, without dates: community tools and development kits, pilot programmes, formal security audits, broader adoption, integration with other trust ecosystems, a formal body for long-term stewardship, and expanded use of zero-knowledge proofs.
+
+### 12.2. Future Governance Considerations
+
+Delegation of votes, reputation in governance, treasury management, scalability of governance, cross-ecosystem decisions — all open.
+
+| Item | State | Since |
+|---|---|---|
+| Private key generated on the device, never sent | live | from the start |
+| Hybrid X25519 + ML-KEM-768 key delivery | live | December 2025 |
+| Passkey-wrapped keys on the device | live | September 2026 |
+| Guardian recovery (two of two, 48-hour arming) | live | 19 September 2026 |
+| Proposal and voting building blocks | in the contracts, no app surface | — |
+| Conflict resolution | design | — |
+| Changing a guardian set in the app; moving an identity to a new key | not built | — |
+| Checking the served app against a published build | not built | — |
+| Hiding the public structure (zero-knowledge proofs) | planned, no date | — |
