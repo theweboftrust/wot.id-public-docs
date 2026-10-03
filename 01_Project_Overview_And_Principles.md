@@ -1,782 +1,166 @@
 # 01: wot.id - Project Overview and Principles
 
+*As of 2026-10-03. The public version of the foundational document of the same name: what wot.id is, the aim it works towards, the principles it is built on and how far each holds in the running system today, why the ledger is IOTA, and the status. It explains the mechanism in general; the implementation detail stays in the internal document.*
+
+---
+
 ## 1. Introduction: Human Identity on the Web of Trust
 
-wot.id is an open peer-to-peer environment where any digitally connected actor – human, machine, service, or otherwise - can communicate, manage and exchange assets, and handle trust with instantaneous speed, maximum security, and minimal cost. Built upon IOTA's advanced distributed ledger technology (DLT), any datapoint is permanently stored on the blockchain (the real cloud!), but can only be accessed and controlled by its owner. Any datapoint also has an inbuilt trust level ranging from -100 to +100 that enables participants to establish and manage complex and intricate trust relationships, where negative values indicate distrust, zero represents neutrality, and positive values indicate trust.
+wot.id is an open peer-to-peer environment where any digitally connected actor — human, machine, organization, or otherwise — can communicate, manage and exchange assets, and handle trust — in complete privacy and with quantum-safe encryption.
 
-> **Terminology note**: IOTA Rebased (May 2025+) stores data on a Move-VM object ledger — equivalent in role to "blockchain state" on chains like Ethereum, but with object-keyed rather than account-keyed storage. The Directed Acyclic Graph (DAG) in IOTA Rebased is the **consensus** structure (the Mysticeti BFT mempool among ~150 validators), not the storage shape. The original user-built Tangle, in which every wallet validated two prior transactions, was retired with Rebased. Across these docs we use **distributed ledger / DLT** as the umbrella term for the storage layer and refer to the DAG only when describing consensus. See `docs/2026_Code_Work/26-04-23_IOTA_Overview` for the full architecture briefing.
+For most people, identity on the internet is an account in someone else's database. Your name, your contacts and your history sit with the platforms you use; when something goes wrong, the only recourse is to ask the party that holds all of it. Three developments put that arrangement under pressure: platforms fail the people who depend on them; software now acts on people's behalf and needs an identity of its own; and encrypted data is being collected today for a quantum computer that may open it later.
 
----
+Concretely, wot.id is three things working together:
 
-### Take back control
+- **An app in your browser.** It creates and holds your keys, encrypts everything you store before it leaves the device, and signs every change you make.
+- **A set of smart contracts on the IOTA mainnet ledger.** Your identity is an object there, controlled by your key. Your encrypted details, the vouches others give you, your file catalogue, your offline messages and your recovery settings live there too.
+- **wot.id's server.** It prepares transactions for you to sign and pays their network fee, relays live messages, and keeps encrypted copies in the wot.id cloud — your files, and by default your message history. It holds no key of yours.
 
-For the human actors in the loop, wot.id offers the following advantages:
-
-1. **Clear Human Identification**: Unequivocally and verifiably identify yourself as human within the digital realm.
-2. **True Data Ownership**: Own and control all digitalized aspects of your existence without any intermediaries whatsoever.
-3. **Value Attribution**: Directly receive any value derived from or created with data connected to your identity.
-4. **Selective Disclosure**: Reveal any aspect of your digital existence to anyone, with any desired degree of granularity and anonymity.
-5. **Provenance & Attribution**: Establish a reliable, auditable source of truth for your work, content, and contributions.
-
----
-
-### 🛡️ World's First Quantum-Safe Self-Sovereign Identity
-
-**wot.id is the first digital identity platform to combine post-quantum cryptography with a fully decentralized web of trust.**
-
-As quantum computers advance toward breaking today's encryption standards (RSA, ECDSA, X25519), billions of digital identities face an existential threat. wot.id addresses this head-on with a hybrid encryption architecture that protects user data against both current and future quantum attacks.
-
-#### What Makes wot.id Unique
-
-| Capability | Traditional SSI | wot.id |
-|------------|-----------------|--------|
-| **Encryption** | Classical (breakable by quantum) | Hybrid X25519 + ML-KEM-768 (NIST FIPS 203) |
-| **Key Storage** | Platform-controlled or HSM | User-owned via BIP-39 mnemonic |
-| **Trust Model** | Centralized issuers | Decentralized peer attestations |
-| **Data Storage** | Off-chain or siloed | 100% on-chain (IOTA Rebased mainnet) |
-| **Server Knowledge** | Sees plaintext data | Zero-knowledge (client-side encryption) |
-
-#### The Quantum-Safe Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  USER'S QUANTUM-SAFE IDENTITY                                          │
-│  ════════════════════════════                                          │
-│                                                                         │
-│  ┌─────────────────┐      ┌─────────────────────────────────────────┐  │
-│  │  BIP-39 Mnemonic │ ──▶ │  Hybrid Key Derivation                   │  │
-│  │  (24 words)      │      │  ├── X25519 (classical, proven)         │  │
-│  │  User owns this  │      │  └── ML-KEM-768 (post-quantum, NIST)    │  │
-│  └─────────────────┘      └─────────────────────────────────────────┘  │
-│           │                                    │                        │
-│           ▼                                    ▼                        │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  ENCRYPTED ON IOTA MAINNET                                       │   │
-│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐   │   │
-│  │  │  Name   │ │  DOB    │ │ Address │ │ Health  │ │  Docs   │   │   │
-│  │  │ ████████│ │█████████│ │█████████│ │█████████│ │█████████│   │   │
-│  │  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘   │   │
-│  │                                                                  │   │
-│  │  Each field encrypted with unique derived key                    │   │
-│  │  Attacker must break BOTH X25519 AND ML-KEM to decrypt          │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-│  wot.id servers NEVER see plaintext. Only the user can decrypt.        │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-#### Why This Matters Now
-
-- **"Harvest Now, Decrypt Later"**: Adversaries are already collecting encrypted data today, waiting for quantum computers to break it tomorrow. Your identity data must be protected NOW.
-- **Regulatory Alignment**: NIST finalized post-quantum standards in 2024 (FIPS 203, 204, 205). wot.id implements ML-KEM-768, the recommended key encapsulation mechanism.
-- **No Migration Needed**: Users don't need to understand cryptography. The 24-word recovery phrase they already have protects them against quantum attacks.
-- **Defense in Depth**: Hybrid encryption means even if one algorithm is broken, the other still protects data.
-
-**First mainnet transaction with PQC encryption: December 23, 2025.**
-
-See `docs/02_System_Architecture.md` section 10.2 for technical implementation details.
-
----
+Two edges of the sentence above are stated where they apply: *in complete privacy* describes content — every value, message and file is encrypted on your device — not the structure around it, which the public ledger shows ([02](02_System_Architecture.md) §1.1); *quantum-safe encryption* is exact for encryption, while the signatures the ledger verifies remain classical for now ([02](02_System_Architecture.md) §10.2).
 
 ### 1.0. Core Mental Model: Data Sovereignty and Trust
 
-**This section is critical for understanding wot.id. Read it before any other documentation.**
+Four ideas carry the whole design.
 
-#### The Fundamental Concept
+1. **Data is the claim.** Every value you store — a first name, a date of birth, a nationality — is itself a statement about reality. Trust is not a separate system; it attaches to each value through the vouches other identities sign for it. There is no second "claims system" beside the data.
+2. **The owner needs only the key and the name.** Your data lives on the public IOTA ledger under your identity's name, encrypted under keys only you hold. wot.id's app is one way to read and change it, not the gatekeeper. If wot.id's servers stopped, the data and your key would still be enough.
+3. **Trust is a measure of reliability, not a verdict.** Who vouched for which value, when, and whether the vouch still stands is recorded on the ledger. Today the app counts these records and opens every count to them; measuring trust on a scale is the long-term aim (§2).
+4. **The app groups data by domain, not by function.** Identity, People & Groups, Agents, Digital Assets, Encrypted Files, Linked Accounts and Recovery are sections of one page; the grouping is presentation, not architecture.
 
-wot.id enables users to store **all digitalized aspects of their existence** as atomic data points on IOTA Rebased mainnet. The primary driver is **data sovereignty**: users are not walled in or dependent on any company—including wot.id itself—to access their data.
+Three first principles follow and are enforced everywhere:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  ATOMIC DATA POINT (stored on IOTA mainnet)                     │
-│  ┌───────────────────────────────────────────────────────────┐ │
-│  │  value: "31 mg/dl"           ← The actual data            │ │
-│  │  trust_value: +85            ← How reliable/verified      │ │
-│  │  attestations: [...]         ← Who verified this          │ │
-│  └───────────────────────────────────────────────────────────┘ │
-│                                                                 │
-│  The trust value IS the claim to reliability.                   │
-│  There is no separate "claim" - the data itself is the claim.   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-#### Key Principles
-
-1. **Data = Claim = Trust Target**
-   - Every piece of stored data is inherently a claim about reality
-   - The trust score attached to each data point represents its reliability/verification status
-   - There is no separate "claims system" - every data point carries its own trust value
-
-2. **DID-Based Data Sovereignty**
-   - Users own their data via their DID (Decentralized Identifier)
-   - To access their data, users need ONLY their DID—not wot.id
-   - wot.id is ONE interface to view/manage data, not the gatekeeper
-   - IOTA Rebased mainnet is the permanent, decentralized storage layer
-
-3. **Trust = Reliability Measure**
-   - Trust scores (-100 to +100) indicate how verified/reliable a data point is
-   - Attestations from other entities increase or decrease trust scores
-   - The attester's own credibility affects the weight of their attestation
-
-4. **Domain Sections, Not Functional Sections**
-   - The ME page organizes atomic data by domain (identity, health, documents, etc.)
-   - Each section displays atomic data points with their trust values
-   - This is presentation grouping, not architectural separation
-
-#### What wot.id Does NOT Do
-
-- ❌ wot.id does NOT own user data
-- ❌ wot.id is NOT required to access data (only DID needed)
-- ❌ Trust is NOT separate from data points
-- ❌ Claims are NOT a separate concept from stored data
-
-For this purpose, wot.id implements the principles of self-sovereign identity (SSI) in their truest sense, enabling secure, private, and fully decentralized identity management and interaction, all made possible by the underlying IOTA protocol.
+- **Nothing on the ledger is plaintext content.** The ledger is world-readable, so every stored value is ciphertext, encrypted on the device. "Public" on the ledger means more peers can decrypt it, never that the bytes are readable. The honest boundary: the *structure* — object ids, labels, timestamps, who vouched for whom, file sizes and categories — is readable, and closing the remaining metadata gaps is owed work, not a finished state.
+- **There is no public viewer.** wot.id has no anonymous application surface beyond the sign-in page and its information pages. Everyone who reads anything is an authenticated peer with their own identity and keys, reached through an interaction — a verification, a conversation, an admission to your circles.
+- **wot.id's servers are conveniences, never necessities.** The ledger is the system. The server and the hosted app accelerate — they prepare transactions, pay fees, relay messages, keep cloud copies — but nothing depends on them for meaning or access. Each must be removable without touching the data, so that the end state can be no wot.id-operated server at all. That end state is a design constraint, not a date.
 
 ### 1.1. wot.id Ecosystem Overview
 
-This high-level diagram illustrates the core components and actors within the wot.id ecosystem:
-
-```mermaid
-graph TB
-    subgraph "Digital Actors"
-        H[👤 Humans]
-        AI[🤖 AI Agents]
-        IoT[📡 IoT Devices]
-        ORG[🏢 Organizations]
-        DAO[🏛️ DAOs]
-    end
-    
-    subgraph "wot.id Platform"
-        DID[🆔 Self-Sovereign Identity<br/>W3C DIDs]
-        TRUST[🤝 Trust Networks<br/>-100 to +100 Scale]
-        COM[💬 P2P Communication<br/>E2EE Messaging]
-        ASSET[💎 Digital Assets<br/>Tokens, NFTs, Credentials]
-        GOV[⚖️ Governance<br/>Decentralized Proposals]
-    end
-    
-    subgraph "IOTA Foundation"
-        DAG[📊 DAG Consensus<br/>Mysticeti BFT]
-        MOVE[📝 Move Smart Contracts<br/>Identity Registry]
-        VALIDATOR[🔐 Validator Network<br/>dPoS Consensus]
-    end
-    
-    subgraph "Intelligence Layer"
-        FILTER[🛡️ Malicious Actor Filtering]
-        REC[🎯 Personalized Recommendations]
-        DEC[💡 Decision Optimization]
-        SEC[🔍 Security Monitoring]
-    end
-    
-    H --> DID
-    AI --> DID
-    IoT --> DID
-    ORG --> DID
-    DAO --> DID
-    
-    DID --> TRUST
-    DID --> COM
-    DID --> ASSET
-    
-    TRUST --> FILTER
-    TRUST --> REC
-    TRUST --> DEC
-    TRUST --> SEC
-    
-    DID --> MOVE
-    TRUST --> MOVE
-    ASSET --> MOVE
-    GOV --> MOVE
-    
-    MOVE --> DAG
-    MOVE --> VALIDATOR
-    
-    style H fill:#4A90E2
-    style AI fill:#E24A90
-    style IoT fill:#90E24A
-    style ORG fill:#E2904A
-    style DAO fill:#904AE2
-    style DID fill:#2ECC71
-    style TRUST fill:#F39C12
-    style DAG fill:#E74C3C
-    style MOVE fill:#9B59B6
-```
+The actors are people, organisations, and software — AI agents, bots, devices — each with an identity of the same kind. The parts they use: the app in the browser (keys, encryption, signing), the contracts on the IOTA mainnet ledger (identities, details, vouches, file catalogues, offline messages, recovery settings), wot.id's server (transaction preparation, fee payment, message relay, cloud copies), and the wot.id cloud (encrypted file bytes and, by default, the encrypted message history). Anyone can read the ledger; only the holder of a key can change what belongs to it.
 
 ### 1.2. Standards Foundation: W3C DID Compliance
 
-wot.id is built on a foundation of open standards and extends them with trust network capabilities.
-
-**Implementation Status: W3C DID Compliant (Production)**
-
-```mermaid
-graph TD
-    W3C[📜 W3C DID Core v1.0<br/>W3C Standard Specification<br/>Technology-agnostic]
-    IDENTITY[🔧 wot.id Backend API<br/>W3C Compliant DID Generation<br/>Ed25519 + BLAKE3 Cryptographic DIDs<br/>✅ Production Deployed]
-    WOT_APP[🌐 wot.id Application<br/>✅ Operational<br/>Trust Network + VALUES]
-    ONCHAIN[📦 On-Chain Storage<br/>✅ DID + Profile + Registry<br/>IOTA Move Contracts]
-
-    W3C -->|Format Compliant| IDENTITY
-    IDENTITY -->|Powers| WOT_APP
-    IDENTITY -->|Stores| ONCHAIN
-    ONCHAIN -->|Persists| WOT_APP
-
-    style W3C fill:#3498db,color:#fff
-    style IDENTITY fill:#2ecc71,color:#fff
-    style WOT_APP fill:#f39c12
-    style ONCHAIN fill:#16a085,color:#fff
-```
-
-**Current Implementation (Production - May 2026):**
-
-🟢 **wot.id Backend API** (Integrated W3C-Compliant DIDs)
-   - Generates cryptographically secure DIDs derived from Ed25519 public keys
-   - Format: `did:iota:mainnet:<blake3-hash-of-pubkey>`
-   - W3C DID Core 1.0 format compliant (syntax, document structure, verification methods)
-   - Cryptographically linked: DID deterministically derived from signing key
-   - **Status: ✅ Production deployed and operational**
-
-**DID Generation:**
-
-```rust
-// Backend API generates Ed25519 keypair
-let signing_key = SigningKey::from_bytes(&rand::random::<[u8; 32]>());
-let verifying_key = signing_key.verifying_key();
-
-// DID derived from public key hash (cryptographically linked)
-let did_hash = blake3::hash(&verifying_key.to_bytes());
-let did_identifier = hex::encode(&did_hash.as_bytes()[0..16]);
-let did = format!("did:iota:mainnet:{}", did_identifier);
-// Same key → Same DID (verifiable relationship)
-```
-
-> **Note on legacy DIDs**: Accounts created before March 2026 use a UUID-style identifier (e.g. `did:iota:mainnet:dcc429e0-3eba-41c8-9635-b373614ecf92`) generated via `Uuid::new_v4()`. The byte length is identical (16 bytes / 32 hex chars), only the formatting differs. Both formats coexist in the on-chain registry and resolve correctly. New accounts use the plain-hex format described above.
-
-**W3C DID Document (Generated on request):**
-
-```json
-{
-  "@context": [
-    "https://www.w3.org/ns/did/v1",
-    "https://w3id.org/security/suites/ed25519-2020/v1"
-  ],
-  "id": "did:iota:mainnet:7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
-  "verificationMethod": [{
-    "id": "did:iota:mainnet:7a8b9c0d...#key-1",
-    "type": "Ed25519VerificationKey2020",
-    "controller": "did:iota:mainnet:7a8b9c0d...",
-    "publicKeyMultibase": "z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK"
-  }],
-  "authentication": ["did:iota:mainnet:7a8b9c0d...#key-1"],
-  "assertionMethod": ["did:iota:mainnet:7a8b9c0d...#key-1"]
-}
-```
-
-**On-Chain Storage (Move Contracts):**
-- ✅ DID string stored in `IdentityProfile.did` field
-- ✅ DID → Profile mapping in `wot_identity_registry.move`
-- ✅ Secondary identifiers (email, phone) → DID mapping
-- ✅ All claims and trust data stored on-chain
-- ✅ Package: `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299` (v11 deployed May 23, 2026 — Move-layer cleanup release (V11-1…V11-14: hardened attestation auth v2, typed governance v2, real trust aggregates, plus 9 body-only fixes) — see `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md`; v9 `0x4a71c629…` was the prior version and is no longer addressed by the backend; the historical `0xf8ddc1060e…` was a pre-v8 standalone deploy and is also no longer addressed). See `docs/2026_Code_Work/26-05-17_SC_V10_Upgrade.md`.
-
-**W3C Compliance Summary:**
-
-| W3C Requirement | Status | Notes |
-|-----------------|--------|-------|
-| DID Syntax (§3.1) | ✅ Compliant | `did:iota:mainnet:<identifier>` |
-| DID Document (§4) | ✅ Compliant | Proper @context, verificationMethod, authentication |
-| Verification Methods | ✅ Compliant | Ed25519VerificationKey2020 |
-| DID Controller | ✅ Compliant | Self-controlled |
-| On-Chain Storage | ✅ Implemented | DID + all data in Move contracts |
-| External Resolution | ❌ Not integrated | By design for SSI (see note) |
-
-**Note on External Resolution:** wot.id DIDs are resolvable within the wot.id ecosystem but not via universal DID resolvers (e.g., resolver.identity.foundation). This is appropriate for a self-sovereign identity system where users interact via wot.id interfaces. External resolver integration is a future enhancement option, not a compliance requirement.
-
-**wot.id Extensions** (Beyond W3C Core)
-   - ✅ Trust scores on atomic data VALUES (-100 to +100)
-   - ✅ On-chain attestation system (`wot_trust.move`)
-   - ✅ Secondary identifier registry (email, phone → DID)
-   - ✅ Post-quantum encryption (X25519 + ML-KEM-768)
-   - ✅ OAuth auto-provisioning (Google, GitHub, Apple)
-
-**Key References:**
-- W3C DID Core v1.0: https://www.w3.org/TR/did-core/
-- W3C Compliance Assessment: `docs/2026_Code_Work/26-01-01_W3C_Compliance.md`
-- Move Contracts: `docs/05_Move_Smart_Contracts.md`
+wot.id follows the idea of the W3C Decentralized Identifiers standard: an identity has a permanent name, `did:wot:0x…`, which is the object id of your profile on the ledger, and that name is controlled by a key rather than by an account at a provider. It does not follow the formats: no DID document is served and no verifiable credential is issued — a vouch is a record on the ledger. Interoperability with other DID systems is not built.
 
 ### 1.3. Identity Architecture: Primary vs Secondary Identifiers
 
-wot.id implements a clear hierarchical identity architecture:
+Your **primary identifier** is the DID. It is minted when your identity is created, it does not change when you sign in on another device or recover through guardians, and everything — details, vouches, files, guardians — accumulates on it.
 
-**Primary Identifier: W3C DID**
-
-```
-Format: did:iota:mainnet:<identifier>
-Example: did:iota:mainnet:af364f192213f8d9ac1425ce2a62a051
-
-Properties:
-- Immutable (never changes)
-- W3C DID Core 1.0 compliant
-- Cryptographically derived from Ed25519 public keys
-- Stored on-chain in wot_identity_registry.move
-- The PERSON or ENTITY itself
-- Used for cryptographic operations and ownership
-```
-
-**Secondary Identifiers: Access Methods**
-
-```
-Examples:
-- email: user@example.com
-- phone: +1-555-0123 (future)
-- twitter: @username (future)
-
-Properties:
-- Mutable (user can change email address)
-- Many-to-one mapping to DID (multiple ways to access ONE identity)
-- Stored as mappings in identity_registry.move ((type, value) → DID generic registry)
-- NOT the person, just ways to ACCESS the person's DID
-- Used for login convenience (OAuth, SMS verification)
-```
-
-**User Flow Example:**
-
-```
-1. User clicks "Sign in with Google" → Frontend obtains email
-2. Frontend calls Backend API with email
-3. Backend queries identity_registry.move: secondary identifier → DID lookup
-4. If DID found: Load existing profile
-5. If DID not found: Generate DID inline (Ed25519 + BLAKE3), store identifier→DID mapping
-6. Display ME page with data VALUES from on-chain profile
-```
-
-**Why This Matters:**
-- Email is NOT the identity (it's just a login method)
-- User can add multiple secondary identifiers (emails, phone, social handles) → all map to ONE DID
-- DID is cryptographically linked to user's keys and assets
-- Changing email doesn't change identity, just updates the mapping
+**Secondary identifiers** are doors, not the identity. An e-mail address confirmed by Google, Apple or GitHub is recorded on the ledger only as an unreadable, keyed hash that maps to your DID, so that a later sign-in with the same provider finds the same identity. A passkey and your private key are the other two doors ([02](02_System_Architecture.md) §10.3). If a provider closed your account, the identity would stay and the other doors would still open it.
 
 ### 1.4. Data Architecture: 100% On-Chain VALUES
 
-All identity data VALUES are stored 100% on-chain on IOTA Rebased mainnet:
+The values you record about yourself are stored on the ledger, each encrypted on your device under a key derived from your private key. Beside them, the ledger holds the catalogue of files you chose to store under Encrypted Files: for each file its hash, its encrypted file key, its size and category, its sealed name and type, and a pointer to where the encrypted bytes are. The bytes themselves are not on the ledger; for every file stored today they are in the wot.id cloud, as ciphertext wot.id cannot read, with an optional encrypted copy on your device.
 
-**On-Chain (IOTA Move Contracts):**
-- ✅ **Primary Identifiers**: W3C DIDs
-- ✅ **Secondary Identifier Mappings**: Generic (type, value) → DID registry (email first, then phone, social)
-- ✅ **Atomic Data VALUES**: `birth_date: "1990-01-01"`, `blood_type: "O+"`, `ldl_cholesterol: "31 mg/dl"`
-- ✅ **Trust Scores per VALUE**: Each VALUE has score -100 to +100 based on attestations
-- ✅ **Claims & Attestations**: Who verified which VALUE, when, with what credibility
-- ✅ **Profile Metadata**: Creation timestamp, controller address, update history
+wot.id runs no database of its own for identity data. Its one persistent store is the cloud tier that holds encrypted file bytes and, by default, your encrypted Mailbox — ciphertext in both cases ([09](09_Data_Storage_And_Asset_Management.md)).
 
-**Optional Off-Chain (Supporting Files Only):**
-- 📄 **Document FILES**: PDF scans (passport.pdf, lab_report.pdf), photos
-- 🔐 **Verification**: On-chain SHA-256 hash proves file integrity
-- ⚠️ **Not Displayed**: ME page displays on-chain VALUES, not files
-- ⚠️ **Not Required**: System works without any off-chain files
+## 2. The long-term aim
 
-**No Traditional Database:**
-- ❌ No SQL, NoSQL, Redis, or any centralized database
-- ❌ Backend is stateless (only queries IOTA blockchain via CLI)
-- ✅ Blockchain is the single source of truth
-- ✅ Fully decentralized, no single points of failure
-
-## 2. Revolutionary Vision: Trust-Aware Intelligence for All Actors
-
-### 2.1. Why wot.id is Unprecedented
-
-wot.id represents a fundamental paradigm shift in how digital actors—human, artificial intelligence, IoT devices, organizations, and hybrid entities—establish identity, build trust, and make decisions in an increasingly complex and dynamic world. This is not merely an improvement upon existing identity systems; it is the foundation for an entirely new category of **trust-aware digital intelligence**.
-
-#### The Convergence of Five Revolutionary Elements
-
-wot.id is unprecedented because it is the first system to integrate five critical capabilities that have never been combined at scale:
-
-1. **Multi-Actor Self-Sovereign Identity**: Unlike traditional identity systems designed exclusively for humans, wot.id provides verifiable identity infrastructure for any digital actor—humans, AI agents, IoT devices, DAOs, and services—all operating on equal footing with W3C-compliant DIDs.
-
-2. **Decentralized Trust Networks as Computational Intelligence**: Trust relationships (-100 to +100 scale) become the foundation for decision-making, creating personalized intelligence that grows smarter through network effects while maintaining complete privacy.
-
-3. **Privacy-Preserving Collective Intelligence**: Federated learning from trust networks enables collaborative intelligence without data sharing, allowing actors to benefit from collective wisdom while maintaining absolute data sovereignty.
-
-4. **Economic Incentive Alignment**: Fair value distribution (#5 principle) creates economic incentives for quality trust relationships, establishing a self-reinforcing ecosystem where good actors are rewarded and malicious actors are filtered out.
-
-5. **Intelligent Assistance for Complex Decision-Making**: The platform functions as a comprehensive digital assistant that leverages trust networks to filter malicious actors, recommend daily activities, optimize decisions, and provide proactive security monitoring.
-
-### 2.2. Addressing the Complex and Dynamic World to Come
-
-The world is rapidly evolving toward unprecedented complexity:
-
-- **AI agents** are becoming autonomous economic actors requiring verifiable identities and trust relationships
-- **IoT devices** need autonomous decision-making capabilities in trustless environments
-- **Human-AI collaboration** requires frameworks for establishing and verifying trust between different types of actors
-- **Decentralized autonomous organizations** need identity and trust infrastructure that operates without centralized control
-- **Digital economies** require systems that can handle value exchange between any type of digital actor
-
-wot.id is designed as the foundational infrastructure for this multi-actor future, where the distinction between human and artificial intelligence becomes less relevant than the ability to establish verifiable identity and trustworthy relationships.
-
-### 2.3. The Trust-Intelligence Feedback Loop
-
-#### How Trust Becomes Intelligence
-
-Traditional AI systems rely on centralized training data and cloud processing. wot.id creates a fundamentally different model:
-
-```mermaid
-graph LR
-    A[🤝 Trust Network] --> B[🧠 Personalized Intelligence]
-    B --> C[✅ Better Decisions]
-    C --> D[📈 Enhanced Trust]
-    D --> E[💪 Stronger Network]
-    E --> A
-    
-    subgraph "Trust as Knowledge"
-        A
-        TK[Your relationships = AI knowledge base]
-    end
-    
-    subgraph "Context-Aware"
-        B
-        CA[Professional, Personal,<br/>Financial, Technical contexts]
-    end
-    
-    subgraph "Collaborative"
-        C
-        CF[Network insights via<br/>zero-knowledge proofs]
-    end
-    
-    subgraph "Continuous Learning"
-        D
-        CL[Intelligence grows<br/>with network]
-    end
-    
-    style A fill:#3498db
-    style B fill:#9b59b6
-    style C fill:#2ecc71
-    style D fill:#f39c12
-    style E fill:#e74c3c
-```
-
-**Key Components:**
-
-1. **Trust as Knowledge Base**: Your trust relationships become your AI's knowledge base
-2. **Context-Aware Processing**: Different trust scores for different contexts (professional, personal, financial, technical)
-3. **Collaborative Filtering**: Network-wide insights without privacy compromise through zero-knowledge proofs
-4. **Continuous Learning**: The system becomes more intelligent as your trust network grows and evolves
-
-#### Practical Applications
-
-**For Humans:**
-- Filter malicious communications and websites based on network trust
-- Receive personalized daily activity recommendations
-- Make better purchasing, professional, and personal decisions
-- Proactive security monitoring and threat detection
-
-**For AI Agents:**
-- Establish verifiable identity and reputation in digital marketplaces
-- Build trust relationships with humans and other AI agents
-- Access collaborative intelligence networks while maintaining privacy
-- Participate in economic activities with transparent trust metrics
-
-**For Organizations:**
-- Verify the authenticity and trustworthiness of partners, customers, and suppliers
-- Build reputation through transparent, auditable trust relationships
-- Access talent and opportunities through trust-based networks
-- Implement governance through decentralized trust mechanisms
-
-### 2.4. Beyond Current Paradigms
-
-#### What Makes This Revolutionary
-
-**Compared to Existing Identity Systems:**
-- Most are centralized (Google, Facebook, government IDs) and human-only
-- wot.id is decentralized and multi-actor
-
-**Compared to Trust Systems:**
-- Current systems (LinkedIn endorsements, eBay ratings, credit scores) are centralized and context-limited
-- wot.id provides universal, context-aware, decentralized trust
-
-**Compared to AI Assistants:**
-- Existing assistants (Siri, Alexa, ChatGPT) are cloud-based, privacy-compromising, and lack personal context
-- wot.id provides local, privacy-preserving, trust-network-powered intelligence
-
-**Compared to Blockchain Identity Solutions:**
-- Most focus only on credential verification or simple identity proofs
-- wot.id integrates identity, trust, intelligence, and economic incentives in a comprehensive ecosystem
-
-### 2.5. The Network Effect Advantage
-
-wot.id creates powerful network effects that become stronger over time:
-
-- **Trust Amplification**: Each new trusted relationship enhances the intelligence available to all connected actors
-- **Security Enhancement**: Larger networks provide better collective threat detection
-- **Economic Value**: Network growth increases opportunities for value creation and exchange
-- **Intelligence Evolution**: The system becomes smarter as more actors participate and contribute trust data
-
-This creates a self-reinforcing cycle where the platform becomes more valuable to each participant as the network grows, while maintaining complete privacy and user sovereignty.
+wot.id records identity and trust between any actors, human or machine, under one privacy rule. The aim beyond today's system is that the trust an actor has recorded becomes usable for that actor's own decisions — which counterparties, messages or offers to accept — with the data staying with its owner. That is stated here as an aim, in the future tense. What exists today is binary vouching at one fixed trust level with counts shown to the user, the recovery, sharing and messaging surfaces of the later pages, and no recommendation, filtering, learning or zero-knowledge component.
 
 ### 2.6. Universal Trust Scale Visualization
 
-The wot.id platform implements a universal trust scale that applies consistently across all contexts and relationships:
+The protocol carries one trust scale, from **−100** (complete distrust) through **0** (neutral) to **+100** (complete trust). It is built into the contracts twice: every vouch carries a trust level on it, and the contracts define a trust profile per identity holding a trust score on the same scale, starting at neutral. The scale is reserved today: the app writes one fixed standard level into every vouch and shows it nowhere as a judgement, and it creates no trust profiles. Graded and negative vouches will return only through a design of their own — a ceremony for giving them and protection against abuse. Measuring trust on this scale is a central long-term aim.
 
-| -100 | -75 | -50 | -25 | 0 | +25 | +50 | +75 | +100 |
-|:----:|:---:|:---:|:---:|:-:|:---:|:---:|:---:|:----:|
-| ❌ | 🟥 | 🟧 | 🟨 | ⬜ | 🟨 | 🟩 | 🟩 | ✅ |
+### 2.7. Core Functionalities
 
-**Trust Scale** (values in thousands, stored on-chain as 0-200,000):
-
-| Score | | Level | Description |
-|:-----:|:---:|-------|-------------|
-| -100 | ❌ | Complete Distrust | Malicious actor, verified harmful behavior |
-| -75 | 🟥 | Strong Distrust | Unreliable, multiple negative attestations |
-| -50 | 🟧 | Distrust | Questionable behavior observed |
-| -25 | 🟨 | Mild Distrust | Skeptical, limited negative signals |
-| 0 | ⬜ | Neutral | Unknown, no attestations yet |
-| +25 | 🟨 | Mild Trust | Promising, initial positive signals |
-| +50 | 🟩 | Trust | Reliable, consistent positive behavior |
-| +75 | 🟩 | Strong Trust | Highly reliable, many positive attestations |
-| +100 | ✅ | Complete Trust | Verified authority, maximum credibility |
-
-**Context-Specific Application:**
-- **Professional Context**: Trust in work quality, reliability, expertise
-- **Personal Context**: Trust in friendship, emotional support, loyalty
-- **Financial Context**: Trust in payment reliability, financial responsibility
-- **Technical Context**: Trust in code quality, security practices, technical knowledge
-- **Health Context**: Trust in medical advice, treatment recommendations
-
-**Dynamic Evolution:**
-- Trust scores evolve based on interactions and attestations
-- Multiple actors' assessments contribute to overall trust score
-- Negative trust actively filters out malicious actors
-- Zero trust represents new actors without established reputation
-
-## 3. Core Functionalities
-
-`wot.id` provides a comprehensive suite of features built upon a foundation of self-sovereign identity:
-
-*   **Self-Sovereign Identity (SSI) Management**: Users have full control over their digital identity. They can create, manage, and selectively disclose their identity attributes and credentials with unparalleled privacy and security.
-*   **Secure Peer-to-Peer Communication**: Users can engage in end-to-end encrypted (E2EE) messaging directly with other users, ensuring conversations remain private and confidential.
-*   **Digital Asset Management**: Users can securely store and transfer digital assets peer-to-peer, leveraging the platform's robust security and IOTA's feeless infrastructure.
-*   **Decentralized Trust Management**: Users can establish, manage, and verify trust relationships and claims within the network, fostering a transparent and reliable digital ecosystem.
+- **Self-sovereign identity management** — an identity you create, control and recover with keys only you hold, and details you record encrypted and reveal selectively.
+- **Secure peer-to-peer communication** — Talk: end-to-end encrypted conversations and groups, delivered live or left on the ledger for an offline recipient ([06](06_P2P_Communication.md)).
+- **Digital asset management** — your identity has an IOTA address; today you can view your balance and send and receive IOTA; the wider asset vision is described as a vision in [09](09_Data_Storage_And_Asset_Management.md) §5.
+- **Decentralised trust management** — vouches given face to face, recorded on the ledger, counted today, measured in the long term ([07](07_Trust_Architecture_And_Management.md)).
 
 ## 3. Guiding Principles
 
-The development and operation of `wot.id` are guided by a set of core and technical design principles.
-
 ### 3.1. Core Principles
 
-These 10 fundamental principles guide the `wot.id` ecosystem:
+The ten founding principles, by name, with where the running system stands against each.
 
-```mermaid
-graph TD
-    START[👤 User Identity Creation] --> P1
-    
-    P1[1️⃣ Open Technology<br/>Minimal friction, costs<br/>Maximum security] --> P2
-    
-    P2[2️⃣ Strict P2P<br/>No intermediaries<br/>Direct ownership] --> P3
-    
-    P3[3️⃣ Human Verification<br/>Cryptographic attestations<br/>Proof-of-personhood] --> P4
-    
-    P4[4️⃣ SSI Ownership<br/>W3C standards<br/>Full user control] --> P5
-    
-    P5[5️⃣ Fair Value<br/>Data ownership<br/>Instant rewards] --> P6
-    
-    P6[6️⃣ Decentralized Governance<br/>Proposal-based voting<br/>Equal participation] --> P7
-    
-    P7[7️⃣ Conflict Resolution<br/>Fair mechanisms<br/>Decentralized arbitration] --> P8
-    
-    P8[8️⃣ Dynamic Liquidity<br/>Continuous evolution<br/>Context adaptation] --> P9
-    
-    P9[9️⃣ Intelligent Assistance<br/>Autonomous decisions<br/>User-scoped permissions] --> P10
-    
-    P10[🔟 Feeless Core<br/>IOTA foundation<br/>Predictable gas fees] --> END
-    
-    END[✅ Complete Digital Sovereignty]
-    
-    style START fill:#3498db,color:#fff
-    style P4 fill:#2ecc71,color:#fff
-    style P5 fill:#f39c12
-    style P6 fill:#9b59b6,color:#fff
-    style P10 fill:#e74c3c,color:#fff
-    style END fill:#16a085,color:#fff
-```
-
-**Detailed Principles:**
-
-1.  **Open Technological Environment**: An open ecosystem where any actor can participate with minimal friction, minimal costs, and maximal security.
-2.  **Strict Peer-to-Peer Environment**: Operates on a logically peer-to-peer basis, excluding intermediaries from transactions and data ownership. While actors interact directly at the protocol level, the physical communication path naturally relies on the distributed network of IOTA nodes.
-3.  **Guaranteed Human Identity**: Human actors can reliably identify themselves and be unquestionably verified by others. This is achieved through a combination of cryptographic attestations, social verification, and optional, privacy-preserving proof-of-personhood systems.
-4.  **Absolute User Control & SSI Ownership**: Each human actor maintains absolute control over their digital identity. Implemented with W3C DID Core 1.0 compliant identities stored on-chain on IOTA mainnet.
-5.  **Fair Value Distribution**: Actors own the value derived from their data and are instantly rewarded through microtransactions.
-6.  **Decentralized Governance**: Governance processes are fully decentralized through **proposal-based voting mechanisms**, empowering all participants to propose, vote on, and execute trust profile updates and system changes equally.
-7.  **Effective Conflict Resolution**: Clear, fair, and decentralized mechanisms are implemented to resolve conflicts efficiently.
-8.  **Dynamic Liquidity**: The system is highly liquid and continuously evolving, adapting dynamically based on user behavior and context.
-9.  **Intelligent Assistance**: An intelligent assistant capable of making autonomous decisions on behalf of users will be integrated. The assistant's autonomy will be strictly scoped by user-defined permissions and policies, ensuring user sovereignty is always maintained.
-10. **Feeless Core Interactions**: Built on IOTA, core data and value transfers are feeless, while smart contract interactions require predictable gas fees. (See: [IOTA Gas Pricing](https://docs.iota.org/about-iota/tokenomics/gas-pricing) and [Gas in IOTA](https://docs.iota.org/about-iota/tokenomics/gas-in-iota))
+| # | Principle | What it means | Today |
+|---|---|---|---|
+| 1 | **Open Technological Environment** | Any actor can take part with minimal friction and cost and maximal security. | The contracts accept a signed transaction from anyone; no API key, no allow-list. There is one client today, wot.id's own. |
+| 2 | **Strict Peer-to-Peer Environment** | No intermediary owns a transaction or the data; actors deal with each other directly at the protocol level. | Holds for the ledger path: your browser signs and sends every transaction itself. Live messages pass through wot.id's relay, which forwards envelopes it cannot open; the relay and the hosted app are conveniences the design can remove. |
+| 3 | **Guaranteed Human Identity** | A human can reliably identify themself and be verified by others. | Human verification is a vouch given face to face by a named person; it is evidence from people you can see, not a uniqueness guarantee. No biometric proof-of-personhood exists or is planned for the current stage. |
+| 4 | **Absolute User Control & SSI Ownership** | Each actor keeps absolute control over their identity. | Holds: keys exist only on your devices; every change needs your signature; wot.id cannot sign as you, read what you encrypted, or restore your identity for you. |
+| 5 | **Fair Value Distribution** | Actors own the value derived from their data and are rewarded for it. | Not built. There is no reward, incentive or token mechanism. |
+| 6 | **Decentralized Governance** | Decisions by proposal and vote, with equal participation. | Proposal and voting building blocks exist in the contracts; there is no app surface for them. |
+| 7 | **Effective Conflict Resolution** | Clear, fair, decentralised mechanisms to resolve disputes. | Design only; nothing is built ([10](10_Governance_And_Conflict_Resolution.md) §6). |
+| 8 | **Dynamic Liquidity** | The system adapts to behaviour and context over time. | A design aim; no mechanism of its own exists in the app today. |
+| 9 | **Intelligent Assistance** | An assistant acting for the user within permissions the user sets. | Future; nothing built (§2). |
+| 10 | **Feeless Core Interactions** | The founding wording, from an earlier generation of the IOTA network. | On the current IOTA network every operation carries a small network fee — a few hundredths of a cent. For basic use wot.id currently pays it from its own gas wallet, under fair use; nothing is charged to you and nothing is paid to wot.id. Sending coins is paid from your own wallet. |
 
 ### 3.2. Technical Design Principles
 
-These 10 technical principles define the implementation approach for `wot.id`, rooted in the capabilities of the IOTA protocol.
+The ten technical principles, in the same order as the internal document, each with what it means for the system you use.
 
-1.  **DAG-Based Consensus Architecture**: Utilizes a Directed Acyclic Graph (DAG) for processing transactions in parallel. Consensus is achieved via the **Mysticeti** protocol, a Byzantine Fault Tolerant (BFT) algorithm that provides low-latency, high-throughput, and energy-efficient finality. This is a significant evolution from traditional, linear blockchains. (See: [Consensus on IOTA](https://docs.iota.org/about-iota/iota-architecture/consensus)).
-2.  **Decentralized Validator Network**: The network is secured by a committee of validators operating under a **Delegated Proof-of-Stake (dPoS)** system. Token holders delegate their stake to validators, ensuring that no central authority controls the network. (See: [Consensus on IOTA](https://docs.iota.org/about-iota/iota-architecture/consensus) and [IOTA Proof of Stake](https://docs.iota.org/about-iota/tokenomics/proof-of-stake)).
-3.  **Real-Time, Low-Cost Transactions**: IOTA's architecture is designed for high performance, enabling near real-time interactions. While core value transfers are feeless, smart contract execution requires gas, ensuring validators are compensated for computational effort. (See: [IOTA Gas Pricing](https://docs.iota.org/about-iota/tokenomics/gas-pricing) and [Gas in IOTA](https://docs.iota.org/about-iota/tokenomics/gas-in-iota))
-4.  **wot.id Stores VALUES, Not Files (Hybrid Data Storage Strategy)**: wot.id is, concretely, **an interface for managing atomic data VALUES on the IOTA blockchain — write, read, share.** The values — `first_name = "Alice"`, `glucose = 120`, `passport_no = "X12345"`, `date_of_birth = 1985-03-14`, etc. — are extracted by the user from their own documents. The source documents (PDFs of lab reports, scans of ID cards, CSV exports from banks, photos) **stay on the user's own device or in their own cloud storage** — wot.id is not a file storage provider. What lives **100% on-chain** via the identity registry and profile objects on IOTA mainnet are the **encrypted VALUES** (identity claims, health atoms, trust scores), surfaced via domain sections (Identity Section, Health Section, etc.). What binds those on-chain values to the off-chain source documents is the **same client-side encryption key**, derived from the user's BIP-39 mnemonic — it encrypts at the source, decrypts on chain, and re-wraps for sharing. — Separately, the **Encrypted Files surface** (`wot_files.move`) is the **edge case**: a *catalog of files the user has chosen to link to their wot.id identity*. A linked file might or might not correspond to a source document from which values were also extracted; those are independent decisions. The file itself lives wherever the user keeps it; the on-chain record holds only the encrypted DEK + metadata + a `storage_location` / `storage_ref` pointer. wot.id is the file's *catalog and access-control layer*, not its home. See: `docs/09_Data_Storage_And_Asset_Management.md` §1, `docs/Claude_Primer.md` §17.
-5.  **Security and Privacy by Design**: Security is anchored by proven cryptography for digital signatures and the robust ownership model of the **Move programming language**, which prevents many common smart contract vulnerabilities at the compiler level. Privacy is enforced via a **3-band privacy scale** — `0 = Public`, `2 = Selective` (specific entities via owner-issued time-limited `PrivacyAccessGrant`), `3 = Private` (default for new writes) — with two enforcement layers: per-data privacy levels on every claim and atom, and per-field access control with time-limited grants. The previously enumerated levels `1 = Trusted Contacts` and `4 = Temporary Access` were dropped in v9 (May 8, 2026): level 1 had no read-side resolver and level 4 was deprecated in favor of `PrivacyAccessGrant`; both are now rejected by Move and backend write paths with `E_DEPRECATED_PRIVACY_LEVEL` / `E_INVALID_PRIVACY_LEVEL`. Legacy on-chain rows at level 1 or 4 remain readable by their owner. (See: [Security on IOTA](https://docs.iota.org/about-iota/iota-architecture/iota-security), [Move Concepts](https://docs.iota.org/developer/iota-101/move-overview/), `docs/2026_Code_Work/26-05-07_2026_Q2_Plan_Update2.md` §C2/M4, `docs/2026_Code_Work/26-05-08_SC_Upgrade.md`).
-6.  **Atomic Data Structure & Modularity**: Implements atomic and independently manageable data fragments for identity and credentials. Identity is not a monolithic profile but is composed of secure, atomic data fragments shared selectively.
-7.  **Crypto-Agility & Future-Proof Security**: All sensitive identity data is protected by **quantum-resistant encryption** using hybrid X25519 + ML-KEM-768 (NIST FIPS 203, `@noble/post-quantum` v0.6.1 — replaced the WebAssembly `@dashlane/pqc-kem-kyber768-browser` on 2026-05-26 because Dashlane exposed no deterministic-keygen API). The encryption infrastructure supports all data types: identity claims (name, DOB, address), health data, documents, and P2P messages. Users own their encryption keys via BIP-39 mnemonic backup—wot.id servers never see plaintext sensitive data. Since the 2026-05-26 library swap (`docs/2026_Code_Work/26-05-26_PQ_Cryptography.md`), the ML-KEM-768 keypair is also derived deterministically from the BIP-39 mnemonic via HKDF-SHA256 (salt `wot.id/mlkem-768/v1`), so a single seed phrase recovers both halves of the hybrid keypair — the previous CSPRNG-based ML-KEM keygen made disclosure-shares-received unrecoverable across devices, which Open-Issues #9 (now closed) tracked. (See: `docs/02_System_Architecture.md` section 10.2)
-8.  **Device-to-Device Trust & P2P Flows**: Establishes and verifies identity through direct, peer-to-peer attestations and device-to-device flows.
-9.  **IOTA-Native and W3C-Compliant**: All on-chain logic is built using IOTA-native technologies, primarily **Move smart contracts** deployed directly on IOTA mainnet (Protocol 26, Starfish consensus). The system uses a custom **Identity Registry** pattern (`wot_identity_registry.move`) for decentralized DID-to-Profile lookups. Backend API generates W3C DID Core 1.0 compliant DIDs using Ed25519 + BLAKE3 cryptographic derivation and submits transactions via the `iota` CLI v1.23.2. The Rust `iota-sdk` Cargo dep that was previously kept around for type aliases was removed on 2026-05-26 (Open-Issues #12 closed — `docs/2026_Code_Work/26-05-26_Backend_Deploy.md`); the backend is now CLI-only. (See: [Move Concepts | IOTA Documentation](https://docs.iota.org/developer/iota-101/move-overview/))
-10. **Universal TrustLevel & Selective Disclosure**: A universal TrustLevel (-100,000 to +100,000) is enforced everywhere, where negative values indicate distrust, zero represents neutrality, and positive values indicate trust. All flows reference and enforce selective disclosure and user sovereignty.
-
-These principles must be referenced and enforced when designing and implementing any aspect of `wot.id`.
+1. **DAG-Based Consensus Architecture** — the IOTA network orders transactions with a Byzantine-fault-tolerant protocol over a directed acyclic graph; a change is final within seconds (§4.1).
+2. **Decentralized Validator Network** — a committee of validators chosen by delegated proof of stake secures the ledger; no single party controls it.
+3. **Real-Time, Low-Cost Transactions** — near real-time interaction; each operation carries a small, predictable fee (§3.1, principle 10).
+4. **wot.id Stores VALUES, Not Files** — wot.id stores the values you extract from your documents, encrypted, on the ledger. Encrypted Files is a separate catalogue of files you chose to link: the catalogue is on the ledger, the encrypted bytes in the wot.id cloud, with an encrypted copy on your device if you keep one. One private key opens both ([09](09_Data_Storage_And_Asset_Management.md) §1).
+5. **Security and Privacy by Design** — proven signatures, a contract language whose ownership model prevents whole classes of bugs, and three privacy bands for every value: readable by the people you admit to your circles, by named people you grant access to, or by you alone.
+6. **Atomic Data Structure & Modularity** — identity is not one profile but many independent values, each shared or withheld on its own.
+7. **Crypto-Agility & Future-Proof Security** — every key delivery combines X25519 with ML-KEM-768; every encrypted record carries a version and scheme number so a primitive can be replaced without rebuilding the system ([02](02_System_Architecture.md) §10.2).
+8. **Device-to-Device Trust & P2P Flows** — identity is verified between devices held by people who meet: one shows a code, the other scans it.
+9. **IOTA-Native and W3C-Compliant** — the contracts are written in Move and run on IOTA's base layer; the DID is minted on the ledger by your own signed transaction (§1.2).
+10. **Universal TrustLevel & Selective Disclosure** — every vouch carries a level on the −100…+100 scale, written at one fixed value today (§2.6); every flow lets you show one detail to one person rather than a profile to everybody.
 
 ## 4. The IOTA Architecture: A Foundation for wot.id
 
-The choice of IOTA as the foundational ledger for wot.id is deliberate and central to its mission. IOTA's unique architecture provides the necessary performance, security, and decentralization required for a global-scale identity system. The key components are detailed below, and all technical decisions must align with this official architecture.
-
 ### 4.1. The Core Ledger and Consensus
 
-Unlike traditional blockchains that process transactions sequentially, IOTA uses a **Directed Acyclic Graph (DAG)** data structure. This allows for transactions to be processed in parallel, dramatically increasing throughput and scalability. 
-
-Consensus on the order of transactions is achieved through **Mysticeti**, a high-performance Byzantine Fault Tolerant (BFT) protocol. Mysticeti uses the DAG to process blocks in parallel and achieves finality in just three rounds of messages, ensuring extremely low latency. The entire system is secured by a decentralized **Consensus Committee** of validators chosen through a Delegated Proof-of-Stake (dPoS) mechanism, where IOTA token holders delegate their voting power.
-
-*Reference: [Consensus on IOTA](https://docs.iota.org/about-iota/iota-architecture/consensus)*
+IOTA orders transactions with a Byzantine-fault-tolerant protocol over a directed acyclic graph, which lets validators process blocks in parallel and reach finality in a few rounds of messages. The validators form a committee chosen by delegated proof of stake. The unit of state is an *object with an owner*: an identity, a file catalogue and a vouch are objects, and "only the holder of the key can change this" is enforced by the ledger rather than by wot.id's code.
 
 ### 4.2. The Transaction Lifecycle
 
-Every transaction on IOTA follows a clear lifecycle, ensuring security and consistency from creation to finality. The key stages are:
-
-1.  **Make Transaction**: A user initiates and signs a transaction with their private key.
-2.  **Process Transaction**: The transaction is sent to a full node, which distributes it to validators for initial checks.
-3.  **Assemble Certificate**: The client gathers signatures from a supermajority of validators into a transaction certificate.
-4.  **Sequence**: The certificate is sent to the DAG-based consensus protocol (Mysticeti), which establishes a final, total order.
-5.  **Process Certificate**: Validators execute the transaction based on its final sequence order.
-6.  **Assemble Effect Certificate**: After execution, the client can gather responses into an effect certificate, proving finality.
-7.  **Checkpoint Certificate**: The network periodically creates checkpoints that record the finalized state of the ledger.
-
-This process ensures that even in a distributed environment with potentially malicious actors, the ledger remains consistent and secure.
-
-*Reference: [Transaction Life Cycle](https://docs.iota.org/about-iota/iota-architecture/transaction-lifecycle)*
+Every change you make in wot.id — a detail saved, a vouch given, a file registered, a message left for someone offline — follows the same four steps. **Prepare:** the app asks wot.id's server for the transaction; the server builds it with you as the sender and signs it as the payer of the fee. **Sign:** your device signs the same transaction with your identity's key; the key never leaves the device. **Broadcast:** your browser sends it, with both signatures, straight to an IOTA node. **Confirm:** the app tells the server the transaction's digest; the server reads the result from the ledger and updates what it shows you. Every contract checks the sender, and the sender is always you; wot.id's signature authorises nothing but the payment.
 
 ### 4.3. Security by Design
 
-IOTA's security model is multi-layered, providing robust protection for user assets and data:
-
-*   **Cryptographic Security**: Access to assets is fundamentally controlled by cryptographic key pairs. A transaction can only be initiated by a valid digital signature.
-*   **Smart Contract Security**: IOTA uses the **Move** programming language, which is designed with an object-centric ownership model. This prevents many classes of common bugs and vulnerabilities directly at the language level.
-*   **Ledger Security**: The dPoS consensus mechanism, run by a decentralized set of validators, ensures the integrity of the ledger and protects against attacks.
-*   **Public Auditability**: All transactions, once finalized, are recorded on the public ledger, providing transparency and the ability for anyone to audit the state of the system.
-
-*Reference: [Security on IOTA](https://docs.iota.org/about-iota/iota-architecture/iota-security), [Move Concepts](https://docs.iota.org/developer/iota-101/move-overview/), [Consensus on IOTA](https://docs.iota.org/about-iota/iota-architecture/consensus)*
+Access to anything on the ledger is controlled by key pairs: a transaction exists only with a valid signature. The contracts are written in Move, whose object-centric ownership model prevents many classes of bugs at the language level. Upgrades to a package are possible only with its upgrade capability and only within the ledger's compatibility rules ([05](05_Move_Smart_Contracts.md) §6).
 
 ## 5. Alignment with Broader Standards: Trust over IP (ToIP)
 
-`wot.id` demonstrates a strong philosophical and technical alignment with the Trust over IP (ToIP) Foundation's principles and architecture, aiming to be a specific instantiation of a digital trust ecosystem within the broader ToIP vision.
-
-Key areas of alignment include:
-
-*   **Dual Stack Model**: `wot.id` has a detailed technology stack and foundational elements for a governance stack, aligning with ToIP's dual-stack (Technology + Governance) emphasis.
-*   **Layered Architecture**: The system's components naturally map to ToIP's four-layer model (Support, Spanning, Tasks, Applications).
-*   **Shared Core Principles**: `wot.id` strongly resonates with ToIP's emphasis on Decentralization, Interoperability, the End-to-End Principle, and Human-Centricity.
-*   **Robust Trust Mechanisms**: `wot.id`'s comprehensive Dual Trust Model and advanced context management are sophisticated implementations of ToIP concepts.
+wot.id is designed as one instance of a digital trust ecosystem in the sense of the Trust over IP Foundation: a technology stack and a governance stack side by side, a layered architecture, and the principles of decentralisation, interoperability, end-to-end security and human-centricity. This is an alignment of design, not a certification; the governance stack is design today ([10](10_Governance_And_Conflict_Resolution.md)).
 
 ## 6. Implementation Status & Roadmap
 
-### 6.1. Current Status (May 2026)
+### 6.1. Current Status (October 2026)
 
-**Production: W3C-Compliant Decentralized Identity**
-
-🟢 **Operational Features:**
-- ✅ W3C DID Core 1.0 compliant DIDs (Ed25519 + BLAKE3 derivation)
-- ✅ On-chain identity storage (`wot_identity_registry.move`, `wot_identity.move`)
-- ✅ OAuth auto-provisioning (Google, GitHub, Apple)
-- ✅ Email → DID secondary identifier mappings
-- ✅ Gas station pattern (backend-sponsored transactions)
-- ✅ QR code attestations (cross-device flow operational)
-- ✅ On-chain attestation submission via `wot_trust.move`
-- ✅ Post-quantum encryption (X25519 + ML-KEM-768)
-- ✅ Unified privacy architecture (3-band scale 0/2/3, two-layer enforcement; v9 May 8, 2026)
-- ✅ Single Backend API (Rust/Axum, Identity Service retired March 2026)
-- ✅ IOTA mainnet deployment (Protocol 26, Starfish consensus, CLI v1.23.2; Rust `iota-sdk` Cargo dep removed 2026-05-26 — Open-Issues #12 closed)
-
-**Architecture:**
-
-```
-User → OAuth Login → Backend API
-  ↓
-  Generates: did:iota:mainnet:<blake3-hash-of-pubkey> (Ed25519 + BLAKE3)
-  ↓
-  On-chain Registry → Profile Creation
-  ↓
-  Trust Network Features → Attestations → Trust Scores
-```
-
-**Production URLs:**
-- Frontend: https://wot.id
-- Backend: https://wot-id-backend.onrender.com
-
-**Key Milestones Achieved:**
-- ✅ **Post-Quantum Cryptography Stack** (Dec 30, 2025; library swap May 26, 2026)
-  - Hybrid X25519 + ML-KEM-768 encryption for all identity fields
-  - Production verified: [Transaction 5se44XYL...](https://explorer.rebased.iota.org/txblock/5se44XYLAHWHMjZT4VXaYCvyh1ueq7QjGV7u36ZCJD7)
-  - Client-side encryption using `@noble/post-quantum` v0.6.1 (audited TypeScript; FIPS 203 ML-KEM-768). Replaced `@dashlane/pqc-kem-kyber768-browser` (WebAssembly) on 2026-05-26 because Dashlane exposed no deterministic-keygen API — see `docs/2026_Code_Work/26-05-26_PQ_Cryptography.md` and `docs/2026_Code_Work/26-05-26_ML_KEM_Determinism_Plan.md`.
-  - **Both halves of the hybrid keypair are now deterministic from the BIP-39 mnemonic** (X25519 from BIP-39 seed → BLAKE3 since Dec 2025; ML-KEM-768 from BIP-39 seed → X25519 priv → HKDF-SHA256 with salt `wot.id/mlkem-768/v1` → 64-byte `(d || z)` → `ml_kem_768.keygen(seed)` since May 26, 2026). Closes Open-Issues #9. Canonical hash pinned in `frontend/src/lib/crypto/mlkem-derivation.test.ts`: `95aa4ac2c5b69b8180e8e6e40735c6cd5bc446ffab2a4e7b113692c79eef699d`.
-  - 24-word BIP-39 mnemonic for key backup/recovery
-- ✅ **Smart Contract v11** (May 23, 2026 — Move-layer cleanup release)
-  - Package ID: `0x40e24bdddd34bdac9ebcfe2d60da0585dbd3b2fa261b716264b5a43597bfe299`
-  - Registry Object: `0x334a70ee16409b749bf221a9d0aafdd8c829db22474e2363a0bdd43e9b45ad92` (unchanged across upgrades)
-  - **Lineage**: v7 (Jan 9, 2026) → v8 (Mar 11, 2026, unified `EncryptedAtom` + `store_atom()` for all 15 atom types; added `has_atom_access()` and `delete_atom()`) → v9 (May 8, 2026, privacy-level cleanup: drops `PRIVACY_TRUSTED_CONTACTS = 1` and `PRIVACY_TEMPORARY_ACCESS = 4` constants, write paths now reject those values) → v10 (May 17, 2026, adds `create_identity_entry` entry wrapper for user-signed identity creation; storage and existing function signatures unchanged) → **v11 (May 23, 2026, Move-layer cleanup release V11-1…V11-14)**: hardened attestation auth via `create_attestation_v2` (sender-derived attester), typed governance via `TrustProposalV2` + v2 entry trio, real trust aggregates via `AtomTrustAggregate` / `ProfileTrustAggregate` maintained by `link_attestation`, plus 9 body-only fixes (constant-key bugs, `total_claims` counter, FileVault event prefixes, etc.) and a framework rev bump v1.21.1 → v1.23.2.
-  - See `docs/2026_Code_Work/26-05-21_Move_V11_Upgrade.md` + `docs/2026_Code_Work/26-05-23_Move_V11_Phase_A_Execution.md` / `Phase_B` / `Phase_C` for the v11 publish record; `docs/2026_Code_Work/26-05-17_SC_V10_Upgrade.md` for v10; `docs/2026_Code_Work/26-05-08_SC_Upgrade.md` for v9.
-- ✅ **First On-Chain Attestation** (Nov 19, 2025)
-  - Transaction: `4Uz9SxQv6gMyd21wwvZhZ4ZJ5KVsAAo4ia46SbHadWDf`
-- ✅ **OAuth Auto-Provisioning** (Nov 11, 2025)
-  - Automatic DID creation for new OAuth users
-- ✅ **Cross-Device QR Attestations** (Nov 17, 2025)
-  - EdDSA-signed JWT with 1-hour expiration
+| Capability | State | Since |
+|---|---|---|
+| Identity on the ledger, named by its own object id (`did:wot:0x…`) | live | June 2026 |
+| Sign-in with Google, Apple or GitHub | live | November 2025 |
+| Sign-in with your private key (the 24 words) | live | June 2026 |
+| Sign-in with a passkey | live | 25 September 2026 |
+| Creating an identity with a passkey alone, without a provider account | live | 30 September 2026 |
+| Encrypted personal details, hybrid post-quantum key delivery | live | December 2025 |
+| Circles — choosing whom you admit | live | July 2026 |
+| In-person verification — vouches on the ledger | live | November 2025 |
+| Talk — encrypted messages, offline delivery, groups | live | groups since August 2026 |
+| Encrypted Files — wot.id cloud by default, device copy, sharing | live | July 2026 |
+| Network fees paid by wot.id for basic use | live | 15 September 2026 |
+| Guardian recovery | live | 19 September 2026 |
+| Contract package, current version | live | 2 October 2026 |
+| Zero-knowledge proofs | planned, no date | — |
+| Collective decisions (proposals, votes) | contract building blocks only, no app | — |
+| Bounded delegation for agents | not built | — |
+| Files in a cloud you choose | designed, not built | — |
 
 ### 6.2. Q2 2026 Pilot
 
-**Audience**: IOTA community open beta. Hochschule Stralsund and other institutional pilots were dropped from Q2 on 2026-05-10.
-
-**Funding model**: every newly-created account is auto-funded with 1 IOTA from the gas-station wallet, hard cap 1,000 trial accounts (≈ €50 envelope). At ~0.005 IOTA per typical user-paid transaction, 1 IOTA covers ~200 transactions.
-
-**Goal**: 5+ test users using wot.id independently by June 30, 2026.
-
-**Open onboarding decision** (one item): immediate vs deferred funding (fund 1 IOTA at signup, or only after first independent peer attestation). Recommendation: deferred — collapses faucet-attack incentive.
-
-See `docs/2026_Code_Work/26-05-10_2026_Pilot_Strategy.md` for the operational source of truth.
+An open beta for the IOTA community was planned for the second quarter of 2026 and did not launch: the quarter closed with the decision to drive the core loop to a reliability bar first. The pilot design is kept as the intended shape of the open beta; no date is given for it ([11](11_Onboarding_And_Adoption.md) §3).
 
 ### 6.3. Future Enhancements
 
-**Optional: External DID Resolution**
-
-The current implementation is fully functional for wot.id users. Optional future enhancements include:
-
-- **Universal Resolver Integration**: Register with resolver.identity.foundation
-- **identity.rs SDK**: IOTA Foundation's official identity SDK (when stable)
-- **Cross-Platform Resolution**: Allow external systems to resolve wot.id DIDs
-
-**Note**: These are optional enhancements, not requirements. The current system is W3C-compliant and production-ready.
-
-**For detailed technical analysis, see:**
-- `docs/2026_Code_Work/26-01-01_W3C_Compliance.md` (W3C compliance assessment)
-- `docs/05_Move_Smart_Contracts.md` (On-chain implementation)
+Named in the internal documents as possible future work, none with a date or a decision: resolution of wot.id identities by external DID resolvers; proving a property without showing the detail (zero-knowledge proofs); storing files in a cloud the user chooses; signed, bounded delegation from a person to an agent; app surfaces for proposals, votes and conflict resolution.
 
 ## 7. Conclusion
 
-The `wot.id` project is committed to realizing a truly decentralized, user-centric digital future. By adhering to these foundational principles and leveraging the cutting-edge technology of the IOTA protocol, `wot.id` aims to provide a secure, private, and empowering platform for all its users.
-
-**Current Status:** wot.id is production-ready with W3C DID Core 1.0 compliant identities, on-chain storage on IOTA mainnet (v11 contract package since May 23, 2026), and the world's first post-quantum encryption for self-sovereign identity. The IOTA-community open-beta pilot is the active Q2 2026 traction effort (`docs/2026_Code_Work/26-05-10_2026_Pilot_Strategy.md`).
+wot.id is live on IOTA mainnet with identities controlled by their holders' keys, encrypted details, vouches recorded on the ledger, encrypted messaging and files, and guardian recovery. The principles above decide its design; this page says for each how far it holds today, so that none reads as a promise the system does not keep. The current effort is reliability of the core loop before outreach.
 
 ## 8. References
 
-This document is grounded in the official IOTA documentation. For further detail, please consult the following primary sources:
-
-*   **General IOTA Information:**
-    *   [IOTA Architecture Overview](https://docs.iota.org/about-iota/iota-architecture/)
-    *   [IOTA Foundation GitHub](https://github.com/iotaledger)
-*   **Consensus and Network:**
-    *   [Consensus on IOTA (Mysticeti & dPoS)](https://docs.iota.org/about-iota/iota-architecture/consensus)
-    *   [IOTA Proof of Stake](https://docs.iota.org/about-iota/tokenomics/proof-of-stake)
-*   **Transactions and Smart Contracts:**
-    *   [Transaction Life Cycle](https://docs.iota.org/about-iota/iota-architecture/transaction-lifecycle)
-    *   [Move Concepts | IOTA Documentation](https://docs.iota.org/developer/iota-101/move-overview/)
-    *   [IOTA Gas Pricing](https://docs.iota.org/about-iota/tokenomics/gas-pricing)
-    *   [Gas in IOTA](https://docs.iota.org/about-iota/tokenomics/gas-in-iota)
-*   **Security:**
-    *   [Security on IOTA](https://docs.iota.org/about-iota/iota-architecture/iota-security)
+- IOTA architecture and consensus: https://docs.iota.org/about-iota/iota-architecture/
+- IOTA transaction lifecycle: https://docs.iota.org/about-iota/iota-architecture/transaction-lifecycle
+- Move concepts: https://docs.iota.org/developer/iota-101/move-overview/
+- W3C Decentralized Identifiers (DID Core 1.0): https://www.w3.org/TR/did-core/
+- ML-KEM (NIST FIPS 203): https://csrc.nist.gov/pubs/fips/203/final
+- The IOTA mainnet explorer, where every id in these pages can be opened: https://explorer.rebased.iota.org
